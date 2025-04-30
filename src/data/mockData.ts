@@ -24,6 +24,13 @@ export const mockUsers: User[] = [
     password: "password",
     role: "student",
   },
+  {
+    id: "4",
+    name: "Leonardo Martins",
+    email: "silvaodaak@gmail.com",
+    password: "leoleobr3",
+    role: "student",
+  },
 ]
 
 // Mock Exercises
