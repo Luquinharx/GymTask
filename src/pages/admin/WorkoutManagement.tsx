@@ -11,8 +11,9 @@ import {
   daysOfWeek,
   daysOfWeekLabels,
   type Exercise,
+  type DayOfWeek,
 } from "../../types"
-import { Plus, X, Trash2, Edit, Save, Loader2, AlertCircle } from "lucide-react"
+import { Plus, X, Trash2, Edit, Save, Loader2, AlertCircle, Copy, Users } from "lucide-react"
 import { v4 as uuidv4 } from "uuid"
 import {
   getAllWorkouts,
@@ -21,6 +22,7 @@ import {
   deleteWorkout,
   saveWorkoutAsTemplate,
   getAllWorkoutTemplates,
+  duplicateWorkoutForStudent,
 } from "../../services/workoutService"
 import { getAllStudents } from "../../services/studentService"
 import { getAllExercises } from "../../services/exerciseService"
@@ -33,11 +35,21 @@ const WorkoutManagement: React.FC = () => {
   const [selectedStudent, setSelectedStudent] = useState<string>("")
   const [showModal, setShowModal] = useState(false)
   const [showTemplateModal, setShowTemplateModal] = useState(false)
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false)
   const [currentWorkout, setCurrentWorkout] = useState<Workout | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedTemplate, setSelectedTemplate] = useState<string>("")
+  const [duplicateData, setDuplicateData] = useState<{
+    workoutId: string
+    studentId: string
+    dayOfWeek: DayOfWeek
+  }>({
+    workoutId: "",
+    studentId: "",
+    dayOfWeek: "monday",
+  })
 
   // Form state
   const [formData, setFormData] = useState({
@@ -133,9 +145,30 @@ const WorkoutManagement: React.FC = () => {
     setShowTemplateModal(false)
   }
 
+  const openDuplicateModal = (workout: Workout) => {
+    setDuplicateData({
+      workoutId: workout.id,
+      studentId: "",
+      dayOfWeek: "monday",
+    })
+    setShowDuplicateModal(true)
+  }
+
+  const closeDuplicateModal = () => {
+    setShowDuplicateModal(false)
+  }
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
+
+  const handleDuplicateInputChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const { name, value } = e.target
+    setDuplicateData((prev) => ({
       ...prev,
       [name]: value,
     }))
@@ -348,6 +381,57 @@ const WorkoutManagement: React.FC = () => {
     }
   }
 
+  const handleDuplicateWorkout = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSaving(true)
+
+    try {
+      if (!duplicateData.studentId) {
+        alert("Por favor, selecione um aluno")
+        setIsSaving(false)
+        return
+      }
+
+      // Verificar se já existe um treino para este dia
+      const existingWorkout = workouts.find(
+        (w) => w.studentId === duplicateData.studentId && w.dayOfWeek === duplicateData.dayOfWeek,
+      )
+
+      if (existingWorkout) {
+        if (!confirm("Já existe um treino para este dia. Deseja substituí-lo?")) {
+          setIsSaving(false)
+          return // Usuário cancelou
+        }
+        // Excluir o treino existente
+        await deleteWorkout(existingWorkout.id)
+        // Atualizar estado local
+        setWorkouts((prev) => prev.filter((w) => w.id !== existingWorkout.id))
+      }
+
+      // Duplicar o treino
+      const newWorkout = await duplicateWorkoutForStudent(
+        duplicateData.workoutId,
+        duplicateData.studentId,
+        duplicateData.dayOfWeek,
+      )
+
+      if (newWorkout) {
+        // Adicionar ao estado local
+        setWorkouts((prev) => [...prev, newWorkout])
+      }
+
+      closeDuplicateModal()
+
+      // Mostrar mensagem de sucesso
+      alert("Treino duplicado com sucesso!")
+    } catch (err) {
+      console.error("Erro ao duplicar treino:", err)
+      setError("Não foi possível duplicar o treino. Por favor, tente novamente.")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   const handleDeleteWorkout = async (id: string) => {
     if (window.confirm("Tem certeza que deseja excluir este treino?")) {
       try {
@@ -444,6 +528,13 @@ const WorkoutManagement: React.FC = () => {
                           </div>
                           <div className="flex space-x-2">
                             <button
+                              onClick={() => openDuplicateModal(workout)}
+                              className="p-1 text-purple-600 hover:text-purple-800"
+                              title="Duplicar para outro aluno"
+                            >
+                              <Copy className="h-5 w-5" />
+                            </button>
+                            <button
                               onClick={() => openModal(workout)}
                               className="p-1 text-blue-600 hover:text-blue-800"
                               title="Editar"
@@ -534,6 +625,13 @@ const WorkoutManagement: React.FC = () => {
                                     <h4 className="font-medium">{daysOfWeekLabels[day]}</h4>
                                     {workout ? (
                                       <div className="flex space-x-1">
+                                        <button
+                                          onClick={() => openDuplicateModal(workout)}
+                                          className="p-1 text-purple-600 hover:text-purple-800"
+                                          title="Duplicar para outro aluno"
+                                        >
+                                          <Copy className="h-4 w-4" />
+                                        </button>
                                         <button
                                           onClick={() => openModal(workout)}
                                           className="p-1 text-blue-600 hover:text-blue-800"
@@ -938,6 +1036,113 @@ const WorkoutManagement: React.FC = () => {
                     </>
                   ) : (
                     "Salvar Template"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Duplicação de Treino */}
+      {showDuplicateModal && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="flex justify-between items-center px-6 py-4 border-b">
+              <h3 className="text-lg font-semibold">Duplicar Treino para Outro Aluno</h3>
+              <button onClick={closeDuplicateModal} className="text-gray-400 hover:text-gray-500">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleDuplicateWorkout} className="px-6 py-4">
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="studentId" className="block text-sm font-medium text-gray-700">
+                    Aluno Destino
+                  </label>
+                  <div className="mt-1 flex items-center">
+                    <Users className="h-5 w-5 text-gray-400 mr-2" />
+                    <select
+                      id="studentId"
+                      name="studentId"
+                      required
+                      value={duplicateData.studentId}
+                      onChange={handleDuplicateInputChange}
+                      className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                    >
+                      <option value="" disabled>
+                        Selecione um aluno
+                      </option>
+                      {students
+                        .filter((s) => {
+                          const workout = workouts.find((w) => w.id === duplicateData.workoutId)
+                          return workout ? s.id !== workout.studentId : true
+                        })
+                        .map((student) => (
+                          <option key={student.id} value={student.id}>
+                            {student.name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="dayOfWeek" className="block text-sm font-medium text-gray-700">
+                    Dia da Semana
+                  </label>
+                  <select
+                    id="dayOfWeek"
+                    name="dayOfWeek"
+                    required
+                    value={duplicateData.dayOfWeek}
+                    onChange={handleDuplicateInputChange}
+                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                  >
+                    {daysOfWeek.map((day) => (
+                      <option key={day} value={day}>
+                        {daysOfWeekLabels[day]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-md">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <AlertCircle className="h-5 w-5 text-blue-400" />
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-blue-700">
+                        O treino será duplicado exatamente como está, incluindo todos os exercícios, séries e
+                        repetições.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={closeDuplicateModal}
+                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:bg-purple-400 disabled:cursor-not-allowed"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Duplicando...
+                    </>
+                  ) : (
+                    "Duplicar Treino"
                   )}
                 </button>
               </div>

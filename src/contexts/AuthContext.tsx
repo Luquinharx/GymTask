@@ -30,6 +30,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Limpar o estado de autenticação ao iniciar o app
+  useEffect(() => {
+    // Verificar se estamos em um ambiente de navegador
+    if (typeof window !== "undefined") {
+      // Limpar qualquer estado de autenticação persistente
+      localStorage.removeItem("gymtask_auth_state")
+      sessionStorage.removeItem("gymtask_auth_state")
+    }
+  }, [])
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
@@ -75,6 +85,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
           console.error("Erro ao buscar dados do usuário:", error)
           setError("Erro ao carregar dados do usuário")
+          // Em caso de erro, fazer logout para evitar estado inconsistente
+          await firebaseSignOut(auth)
+          setCurrentUser(null)
         }
       } else {
         setCurrentUser(null)
@@ -87,6 +100,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string): Promise<User> => {
     try {
+      // Limpar qualquer estado anterior
+      await firebaseSignOut(auth)
+
       const result = await signInWithEmailAndPassword(auth, email, password)
 
       // Buscar dados adicionais do usuário no Firestore
@@ -147,6 +163,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await firebaseSignOut(auth)
       setCurrentUser(null)
+
+      // Limpar qualquer estado persistente
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("gymtask_auth_state")
+        sessionStorage.removeItem("gymtask_auth_state")
+      }
     } catch (error) {
       console.error("Erro ao fazer logout:", error)
     }

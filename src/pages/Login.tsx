@@ -11,8 +11,13 @@ const Login = () => {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const { login, currentUser } = useAuth()
+  const { login, currentUser, logout } = useAuth()
   const navigate = useNavigate()
+
+  // Garantir que o usuário esteja deslogado ao acessar a página de login
+  useEffect(() => {
+    logout()
+  }, [logout])
 
   useEffect(() => {
     if (currentUser) {
@@ -128,4 +133,3 @@ const Login = () => {
 }
 
 export default Login
-

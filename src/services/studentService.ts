@@ -49,7 +49,16 @@ export const createStudent = async (name: string, email: string, password: strin
       ...userData,
     }
 
-    await sendWelcomeEmail(newUser, password)
+    // Enviar email de boas-vindas
+    try {
+      await sendWelcomeEmail(newUser, password)
+    } catch (emailError) {
+      console.error("Erro ao enviar email de boas-vindas:", emailError)
+      // Não interromper o fluxo se o email falhar
+    }
+
+    // 4. Reautenticar o usuário admin (para evitar que o admin seja deslogado)
+    // Isso é feito no componente StudentManagement.tsx
 
     return newUser
   } catch (error) {
