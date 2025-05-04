@@ -21,10 +21,11 @@ export interface Exercise {
 export interface Workout {
   id: string
   studentId: string
+  name: string // Adicionado campo para nome do treino
   dayOfWeek: DayOfWeek
   exercises: WorkoutExercise[]
-  completed?: boolean // Adicionado campo para marcar treino como concluído
-  completedDate?: string // Data de conclusão do treino
+  completed?: boolean
+  completedDate?: string
 }
 
 export interface WorkoutExercise {
@@ -33,7 +34,17 @@ export interface WorkoutExercise {
   sets: number
   reps: number
   notes?: string
-  completed?: boolean // Adicionado campo para marcar exercício como concluído
+  completed?: boolean
+}
+
+// Novo tipo para templates de treino
+export interface WorkoutTemplate {
+  id: string
+  name: string
+  description?: string
+  exercises: WorkoutExercise[]
+  createdAt: string
+  createdBy: string // ID do usuário que criou o template
 }
 
 // Progress Types

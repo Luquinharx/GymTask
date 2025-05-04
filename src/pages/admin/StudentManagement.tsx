@@ -3,10 +3,15 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import Header from "../../components/layout/Header"
-import { mockUsers } from "../../data/mockData"
 import type { User } from "../../types"
-import { Plus, X, Mail, Edit, Trash2, Check, AlertCircle } from "lucide-react"
-import { v4 as uuidv4 } from "uuid"
+import { Plus, Mail, Edit, Trash2, Check, AlertCircle, Loader2, X } from "lucide-react"
+import {
+  createStudent,
+  getAllStudents,
+  updateStudent,
+  deleteStudent,
+  sendPasswordReset,
+} from "../../services/studentService"
 
 const StudentManagement: React.FC = () => {
   const [students, setStudents] = useState<User[]>([])
@@ -14,6 +19,9 @@ const StudentManagement: React.FC = () => {
   const [currentStudent, setCurrentStudent] = useState<User | null>(null)
   const [showEmailSent, setShowEmailSent] = useState(false)
   const [sentToEmail, setSentToEmail] = useState("")
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [actionInProgress, setActionInProgress] = useState(false)
 
   // Form state
   const [formData, setFormData] = useState<{
@@ -28,10 +36,22 @@ const StudentManagement: React.FC = () => {
     password: "",
   })
 
+  // Carregar alunos do Firestore
   useEffect(() => {
-    // Em uma aplicação real, isso seria uma chamada de API
-    const filteredStudents = mockUsers.filter((user) => user.role === "student")
-    setStudents(filteredStudents)
+    const loadStudents = async () => {
+      try {
+        setIsLoading(true)
+        const loadedStudents = await getAllStudents()
+        setStudents(loadedStudents)
+      } catch (err) {
+        console.error("Erro ao carregar alunos:", err)
+        setError("Não foi possível carregar os alunos. Por favor, tente novamente.")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadStudents()
   }, [])
 
   const resetForm = () => {
@@ -50,7 +70,7 @@ const StudentManagement: React.FC = () => {
         name: student.name,
         email: student.email,
         generatePassword: false,
-        password: student.password || "",
+        password: "",
       })
       setCurrentStudent(student)
     } else {
@@ -81,40 +101,80 @@ const StudentManagement: React.FC = () => {
     return password
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setActionInProgress(true)
+    setError(null)
 
-    const password = formData.generatePassword ? generateRandomPassword() : formData.password
+    try {
+      const password = formData.generatePassword ? generateRandomPassword() : formData.password
 
-    const newStudent: User = {
-      id: currentStudent ? currentStudent.id : uuidv4(),
-      name: formData.name,
-      email: formData.email,
-      role: "student",
-      password: password,
+      if (currentStudent) {
+        // Atualizar aluno existente
+        await updateStudent(currentStudent.id, {
+          name: formData.name,
+          email: formData.email,
+        })
+
+        // Atualizar estado local
+        setStudents((prev) =>
+          prev.map((s) => (s.id === currentStudent.id ? { ...s, name: formData.name, email: formData.email } : s)),
+        )
+      } else {
+        // Criar novo aluno
+        const newStudent = await createStudent(formData.name, formData.email, password)
+
+        // Adicionar ao estado local
+        setStudents((prev) => [...prev, newStudent])
+
+        // Mostrar notificação de email enviado
+        setSentToEmail(formData.email)
+        setShowEmailSent(true)
+        setTimeout(() => {
+          setShowEmailSent(false)
+        }, 5000)
+      }
+
+      closeModal()
+    } catch (err: any) {
+      console.error("Erro ao salvar aluno:", err)
+      setError(err.message || "Ocorreu um erro ao processar sua solicitação. Por favor, tente novamente.")
+    } finally {
+      setActionInProgress(false)
     }
+  }
 
-    if (currentStudent) {
-      // Atualizar aluno existente
-      setStudents((prev) => prev.map((s) => (s.id === currentStudent.id ? newStudent : s)))
-    } else {
-      // Criar novo aluno
-      setStudents((prev) => [...prev, newStudent])
+  const handleDelete = async (id: string) => {
+    if (window.confirm("Tem certeza que deseja excluir este aluno? Esta ação não pode ser desfeita.")) {
+      setActionInProgress(true)
+      try {
+        await deleteStudent(id)
 
-      // Simular envio de email
-      setSentToEmail(formData.email)
+        // Atualizar estado local
+        setStudents((prev) => prev.filter((s) => s.id !== id))
+      } catch (err) {
+        console.error("Erro ao excluir aluno:", err)
+        setError("Falha ao excluir aluno. Por favor, tente novamente.")
+      } finally {
+        setActionInProgress(false)
+      }
+    }
+  }
+
+  const handleResendCredentials = async (email: string) => {
+    setActionInProgress(true)
+    try {
+      await sendPasswordReset(email)
+      setSentToEmail(email)
       setShowEmailSent(true)
       setTimeout(() => {
         setShowEmailSent(false)
       }, 5000)
-    }
-
-    closeModal()
-  }
-
-  const handleDelete = (id: string) => {
-    if (window.confirm("Tem certeza que deseja excluir este aluno?")) {
-      setStudents((prev) => prev.filter((s) => s.id !== id))
+    } catch (err) {
+      console.error("Erro ao enviar email:", err)
+      setError("Falha ao enviar email. Por favor, tente novamente.")
+    } finally {
+      setActionInProgress(false)
     }
   }
 
@@ -128,12 +188,32 @@ const StudentManagement: React.FC = () => {
 
           <button
             onClick={() => openModal()}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            disabled={actionInProgress}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-400 disabled:cursor-not-allowed"
           >
-            <Plus className="h-5 w-5 mr-1" />
-            Novo Aluno
+            {actionInProgress ? (
+              <>
+                <Loader2 className="h-5 w-5 mr-1 animate-spin" />
+                Processando...
+              </>
+            ) : (
+              <>
+                <Plus className="h-5 w-5 mr-1" />
+                Novo Aluno
+              </>
+            )}
           </button>
         </div>
+
+        {/* Alerta de erro */}
+        {error && (
+          <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-md flex items-center">
+            <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+            <div>
+              <p className="text-red-700">{error}</p>
+            </div>
+          </div>
+        )}
 
         {/* Alerta de email enviado */}
         {showEmailSent && (
@@ -147,7 +227,12 @@ const StudentManagement: React.FC = () => {
           </div>
         )}
 
-        {students.length === 0 ? (
+        {isLoading ? (
+          <div className="bg-white shadow rounded-lg p-6 text-center">
+            <Loader2 className="h-8 w-8 text-blue-600 mx-auto animate-spin" />
+            <p className="mt-2 text-gray-500">Carregando alunos...</p>
+          </div>
+        ) : students.length === 0 ? (
           <div className="bg-white shadow rounded-lg p-6 text-center">
             <p className="text-gray-500">Nenhum aluno cadastrado.</p>
           </div>
@@ -210,29 +295,25 @@ const StudentManagement: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-3">
                         <button
-                          onClick={() => {
-                            // Simular reenvio de credenciais
-                            setSentToEmail(student.email)
-                            setShowEmailSent(true)
-                            setTimeout(() => {
-                              setShowEmailSent(false)
-                            }, 5000)
-                          }}
-                          className="text-blue-600 hover:text-blue-900"
+                          onClick={() => handleResendCredentials(student.email)}
+                          disabled={actionInProgress}
+                          className="text-blue-600 hover:text-blue-900 disabled:text-blue-300 disabled:cursor-not-allowed"
                           title="Reenviar credenciais"
                         >
                           <Mail className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => openModal(student)}
-                          className="text-indigo-600 hover:text-indigo-900"
+                          disabled={actionInProgress}
+                          className="text-indigo-600 hover:text-indigo-900 disabled:text-indigo-300 disabled:cursor-not-allowed"
                           title="Editar"
                         >
                           <Edit className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => handleDelete(student.id)}
-                          className="text-red-600 hover:text-red-900"
+                          disabled={actionInProgress}
+                          className="text-red-600 hover:text-red-900 disabled:text-red-300 disabled:cursor-not-allowed"
                           title="Excluir"
                         >
                           <Trash2 className="h-5 w-5" />
@@ -290,35 +371,39 @@ const StudentManagement: React.FC = () => {
                   />
                 </div>
 
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="generatePassword"
-                    name="generatePassword"
-                    checked={formData.generatePassword}
-                    onChange={handleInputChange}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="generatePassword" className="ml-2 block text-sm text-gray-700">
-                    Gerar senha automaticamente
-                  </label>
-                </div>
+                {!currentStudent && (
+                  <>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="generatePassword"
+                        name="generatePassword"
+                        checked={formData.generatePassword}
+                        onChange={handleInputChange}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="generatePassword" className="ml-2 block text-sm text-gray-700">
+                        Gerar senha automaticamente
+                      </label>
+                    </div>
 
-                {!formData.generatePassword && (
-                  <div>
-                    <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                      Senha
-                    </label>
-                    <input
-                      type="text"
-                      id="password"
-                      name="password"
-                      required={!formData.generatePassword}
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    />
-                  </div>
+                    {!formData.generatePassword && (
+                      <div>
+                        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                          Senha
+                        </label>
+                        <input
+                          type="text"
+                          id="password"
+                          name="password"
+                          required={!formData.generatePassword}
+                          value={formData.password}
+                          onChange={handleInputChange}
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                        />
+                      </div>
+                    )}
+                  </>
                 )}
 
                 <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md">
@@ -329,7 +414,7 @@ const StudentManagement: React.FC = () => {
                     <div className="ml-3">
                       <p className="text-sm text-yellow-700">
                         {currentStudent
-                          ? "As alterações serão salvas, mas o email não será reenviado automaticamente."
+                          ? "As alterações serão salvas no sistema."
                           : "Um email será enviado ao aluno com as credenciais de acesso."}
                       </p>
                     </div>
@@ -341,14 +426,17 @@ const StudentManagement: React.FC = () => {
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  disabled={actionInProgress}
+                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  disabled={actionInProgress}
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-400 disabled:cursor-not-allowed flex items-center"
                 >
+                  {actionInProgress && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                   {currentStudent ? "Atualizar" : "Cadastrar"}
                 </button>
               </div>
@@ -361,4 +449,3 @@ const StudentManagement: React.FC = () => {
 }
 
 export default StudentManagement
-

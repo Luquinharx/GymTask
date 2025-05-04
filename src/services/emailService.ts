@@ -1,57 +1,86 @@
 import type { User } from "../types"
 
-// Este é um serviço simulado de email
-// Em uma aplicação real, você usaria um serviço como SendGrid, Mailgun, etc.
+// Opção 1: Usando EmailJS
+// Você precisará instalar: npm install @emailjs/browser
+import emailjs from "@emailjs/browser"
 
+// Opção 2: Usando Resend
+// Você precisará instalar: npm install resend
+// import { Resend } from 'resend'
+// const resend = new Resend('re_123456789');
+
+// Substitua as configurações do EmailJS com as credenciais fornecidas
+const EMAILJS_SERVICE_ID = "Gymtask" // Substitua pelo seu Service ID quando tiver
+const EMAILJS_TEMPLATE_ID = "template_su5snrm" // Template ID fornecido
+const EMAILJS_PUBLIC_KEY = "EbUCrzHz-KzDaIyBG" // Public Key da sua conta
+
+// Enviar email de boas-vindas com credenciais
 export const sendWelcomeEmail = async (user: User, password: string): Promise<boolean> => {
-  // Simular o envio de email
-  console.log(`
-    Enviando email para: ${user.email}
-    Assunto: Bem-vindo ao GymTask - Suas credenciais de acesso
-    
-    Conteúdo:
-    Olá ${user.name},
-    
-    Bem-vindo ao GymTask! Seu professor criou uma conta para você.
-    
-    Suas credenciais de acesso são:
-    Email: ${user.email}
-    Senha: ${password}
-    
-    Acesse o sistema em: https://gymtask.app
-    
-    Atenciosamente,
-    Equipe GymTask
-  `)
+  try {
+    // Usando EmailJS
+    const templateParams = {
+      to_name: user.name,
+      to_email: user.email,
+      user_email: user.email,
+      user_password: password,
+      app_name: "GymTask",
+      app_url: "https://gymtask.app",
+    }
 
-  // Simular um atraso de rede
-  await new Promise((resolve) => setTimeout(resolve, 500))
+    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams, EMAILJS_PUBLIC_KEY)
 
-  return true
+    // Usando Resend (alternativa)
+    /*
+    await resend.emails.send({
+      from: 'GymTask <onboarding@gymtask.app>',
+      to: [user.email],
+      subject: 'Bem-vindo ao GymTask - Suas credenciais de acesso',
+      html: `
+        <h1>Bem-vindo ao GymTask!</h1>
+        <p>Olá ${user.name},</p>
+        <p>Seu professor criou uma conta para você.</p>
+        <p>Suas credenciais de acesso são:</p>
+        <ul>
+          <li>Email: ${user.email}</li>
+          <li>Senha: ${password}</li>
+        </ul>
+        <p>Acesse o sistema em: <a href="https://gymtask.app">https://gymtask.app</a></p>
+        <p>Atenciosamente,<br>Equipe GymTask</p>
+      `
+    });
+    */
+
+    console.log(`Email enviado com sucesso para ${user.email}`)
+    return true
+  } catch (error) {
+    console.error("Erro ao enviar email:", error)
+    return false
+  }
 }
 
+// Reenviar credenciais
 export const resendCredentialsEmail = async (user: User): Promise<boolean> => {
-  // Simular o reenvio de credenciais
-  console.log(`
-    Reenviando credenciais para: ${user.email}
-    Assunto: GymTask - Suas credenciais de acesso
-    
-    Conteúdo:
-    Olá ${user.name},
-    
-    Conforme solicitado, aqui estão suas credenciais de acesso ao GymTask:
-    
-    Email: ${user.email}
-    Senha: ${user.password || "[Senha oculta por segurança]"}
-    
-    Acesse o sistema em: https://gymtask.app
-    
-    Atenciosamente,
-    Equipe GymTask
-  `)
+  try {
+    // Usando EmailJS
+    const templateParams = {
+      to_name: user.name,
+      to_email: user.email,
+      user_email: user.email,
+      app_name: "GymTask",
+      app_url: "https://gymtask.app",
+    }
 
-  // Simular um atraso de rede
-  await new Promise((resolve) => setTimeout(resolve, 500))
+    await emailjs.send(
+      EMAILJS_SERVICE_ID,
+      "password_reset_template", // Template específico para redefinição de senha
+      templateParams,
+      EMAILJS_PUBLIC_KEY,
+    )
 
-  return true
+    console.log(`Email de redefinição enviado com sucesso para ${user.email}`)
+    return true
+  } catch (error) {
+    console.error("Erro ao enviar email de redefinição:", error)
+    return false
+  }
 }

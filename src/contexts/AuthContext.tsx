@@ -3,7 +3,8 @@
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
 import { signInWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged } from "firebase/auth"
-import { auth } from "../config/firebase"
+import { auth, db } from "../config/firebase"
+import { doc, getDoc, setDoc } from "firebase/firestore"
 import type { User } from "../types"
 
 interface AuthContextType {
@@ -32,17 +33,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Definir o papel com base no email
-        const isAdmin = firebaseUser.email === "lucasmartinsa3009@gmail.com"
+        try {
+          // Buscar dados adicionais do usuário no Firestore
+          const userDoc = await getDoc(doc(db, "users", firebaseUser.uid))
 
-        const user: User = {
-          id: firebaseUser.uid,
-          name: firebaseUser.displayName || "Usuário",
-          email: firebaseUser.email || "",
-          role: isAdmin ? "admin" : "student",
+          if (userDoc.exists()) {
+            // Se o documento existe, use os dados do Firestore
+            const userData = userDoc.data()
+            const user: User = {
+              id: firebaseUser.uid,
+              name: userData.name || firebaseUser.displayName || "Usuário",
+              email: userData.email || firebaseUser.email || "",
+              role: userData.role || "student",
+            }
+            setCurrentUser(user)
+          } else {
+            // Se não existe documento no Firestore, use apenas os dados do Auth
+            // Verificar se é o email do admin
+            const isAdmin = firebaseUser.email === "lucasmartinsa3009@gmail.com"
+
+            const user: User = {
+              id: firebaseUser.uid,
+              name: firebaseUser.displayName || "Usuário",
+              email: firebaseUser.email || "",
+              role: isAdmin ? "admin" : "student",
+            }
+
+            // Criar o documento no Firestore para este usuário
+            try {
+              await setDoc(doc(db, "users", firebaseUser.uid), {
+                ...user,
+                createdAt: new Date().toISOString(),
+              })
+              console.log("Documento do usuário criado no Firestore")
+            } catch (docError) {
+              console.error("Erro ao criar documento do usuário:", docError)
+            }
+
+            setCurrentUser(user)
+          }
+        } catch (error) {
+          console.error("Erro ao buscar dados do usuário:", error)
+          setError("Erro ao carregar dados do usuário")
         }
-
-        setCurrentUser(user)
       } else {
         setCurrentUser(null)
       }
@@ -55,18 +88,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string): Promise<User> => {
     try {
       const result = await signInWithEmailAndPassword(auth, email, password)
-      const isAdmin = email === "lucasmartinsa3009@gmail.com"
 
-      const user: User = {
-        id: result.user.uid,
-        name: result.user.displayName || "Usuário",
-        email: result.user.email || "",
-        role: isAdmin ? "admin" : "student",
+      // Buscar dados adicionais do usuário no Firestore
+      const userDoc = await getDoc(doc(db, "users", result.user.uid))
+
+      if (userDoc.exists()) {
+        // Se o documento existe, use os dados do Firestore
+        const userData = userDoc.data()
+        const user: User = {
+          id: result.user.uid,
+          name: userData.name || result.user.displayName || "Usuário",
+          email: userData.email || result.user.email || "",
+          role: userData.role || "student",
+        }
+        return user
+      } else {
+        // Fallback para o comportamento anterior
+        const isAdmin = email === "lucasmartinsa3009@gmail.com"
+        const user: User = {
+          id: result.user.uid,
+          name: result.user.displayName || "Usuário",
+          email: result.user.email || "",
+          role: isAdmin ? "admin" : "student",
+        }
+
+        // Criar o documento no Firestore para este usuário
+        try {
+          await setDoc(doc(db, "users", result.user.uid), {
+            ...user,
+            createdAt: new Date().toISOString(),
+          })
+          console.log("Documento do usuário criado no Firestore durante login")
+        } catch (docError) {
+          console.error("Erro ao criar documento do usuário durante login:", docError)
+        }
+
+        return user
       }
+    } catch (error: any) {
+      console.error("Erro de login:", error)
 
-      return user
-    } catch (error) {
-      throw new Error("Email ou senha inválidos")
+      // Mensagens de erro mais específicas
+      if (error.code === "auth/user-not-found") {
+        throw new Error("Usuário não encontrado. Verifique seu email.")
+      } else if (error.code === "auth/wrong-password") {
+        throw new Error("Senha incorreta. Tente novamente ou redefina sua senha.")
+      } else if (error.code === "auth/too-many-requests") {
+        throw new Error("Muitas tentativas de login. Tente novamente mais tarde ou redefina sua senha.")
+      } else if (error.code === "auth/invalid-credential") {
+        throw new Error("Credenciais inválidas. Verifique seu email e senha.")
+      } else {
+        throw new Error("Erro ao fazer login: " + (error.message || "Tente novamente mais tarde"))
+      }
     }
   }
 
@@ -89,4 +162,3 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
-
