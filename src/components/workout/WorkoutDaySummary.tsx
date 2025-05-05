@@ -5,11 +5,12 @@ import { useState, useEffect } from "react"
 import { type Workout, daysOfWeekLabels, type DayOfWeek } from "../../types"
 import ExerciseCard from "../exercise/ExerciseCard"
 import { getExerciseById } from "../../data/mockData"
-import { Check, Download, Award, Calendar, CalendarCheck, Loader2, Printer } from "lucide-react"
+import { Check, Download, Award, Calendar, CalendarCheck, Loader2, Printer, Star, Trophy, X } from "lucide-react"
 import html2canvas from "html2canvas"
 import { getAllExercises } from "../../services/exerciseService"
 import { getStudentById } from "../../services/studentService"
 import { PDFDownloadLink, Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer"
+import WorkoutExcelExport from "./WorkoutExcelExport"
 
 // Definir estilos para o PDF
 const styles = StyleSheet.create({
@@ -225,6 +226,127 @@ const WorkoutDaySummary: FC<WorkoutDaySummaryProps> = ({ workout, dayOfWeek, isA
   )
 }
 
+// Componente de confete para celebração
+const Confetti = ({ count = 50 }) => {
+  const confetti = Array.from({ length: count }).map((_, i) => {
+    const size = Math.random() * 10 + 5
+    const left = Math.random() * 100
+    const delay = Math.random() * 3
+    const duration = Math.random() * 3 + 2
+    const color = [
+      "bg-red-500",
+      "bg-blue-500",
+      "bg-green-500",
+      "bg-yellow-500",
+      "bg-purple-500",
+      "bg-pink-500",
+      "bg-indigo-500",
+      "bg-orange-500",
+    ][Math.floor(Math.random() * 8)]
+
+    return (
+      <div
+        key={i}
+        className={`absolute ${color} rounded-md animate-confetti`}
+        style={{
+          width: `${size}px`,
+          height: `${size}px`,
+          left: `${left}%`,
+          animationDelay: `${delay}s`,
+          animationDuration: `${duration}s`,
+        }}
+      />
+    )
+  })
+
+  return <div className="fixed inset-0 pointer-events-none overflow-hidden">{confetti}</div>
+}
+
+// Componente de celebração
+const CelebrationModal = ({
+  type,
+  onClose,
+}: {
+  type: "daily" | "weekly" | "monthly"
+  onClose: () => void
+}) => {
+  const [showConfetti, setShowConfetti] = useState(true)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowConfetti(false)
+    }, 4000)
+
+    return () => clearTimeout(timer)
+  }, [])
+
+  const messages = {
+    daily: {
+      title: "Treino Concluído!",
+      message: "Você completou seu treino de hoje. Continue assim!",
+      icon: <Award className="h-16 w-16 text-yellow-400" />,
+      color: "from-green-600 to-green-800",
+    },
+    weekly: {
+      title: "Semana Perfeita!",
+      message: "Você completou todos os treinos da semana. Que dedicação incrível!",
+      icon: <Trophy className="h-16 w-16 text-yellow-400" />,
+      color: "from-blue-600 to-blue-800",
+    },
+    monthly: {
+      title: "Meta Mensal Alcançada!",
+      message: "Um mês inteiro de treinos completos. Você é extraordinário!",
+      icon: <Star className="h-16 w-16 text-yellow-400" />,
+      color: "from-purple-600 to-purple-800",
+    },
+  }
+
+  const { title, message, icon, color } = messages[type]
+
+  return (
+    <div className="fixed inset-0 flex items-center justify-center z-50">
+      <div className="absolute inset-0 bg-black/70" onClick={onClose}></div>
+
+      {showConfetti && <Confetti />}
+
+      <div
+        className={`relative bg-gradient-to-br ${color} p-8 rounded-2xl shadow-2xl max-w-md w-full mx-4 animate-celebration`}
+      >
+        <button onClick={onClose} className="absolute top-3 right-3 text-white/70 hover:text-white">
+          <X className="h-6 w-6" />
+        </button>
+
+        <div className="flex flex-col items-center text-center">
+          <div className="bg-white/20 p-6 rounded-full mb-4">{icon}</div>
+
+          <h2 className="text-3xl font-bold text-white mb-2">{title}</h2>
+          <p className="text-white/90 mb-6">{message}</p>
+
+          <div className="flex space-x-2 justify-center">
+            <button
+              onClick={onClose}
+              className="px-6 py-2 bg-white text-gray-900 font-medium rounded-lg hover:bg-white/90 transition-colors"
+            >
+              Continuar
+            </button>
+
+            <button
+              onClick={() => {
+                // Compartilhar nas redes sociais (simulado)
+                alert("Compartilhamento nas redes sociais seria implementado aqui!")
+                onClose()
+              }}
+              className="px-6 py-2 bg-white/20 text-white font-medium rounded-lg hover:bg-white/30 transition-colors"
+            >
+              Compartilhar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 interface WorkoutDetailsProps {
   workout: Workout | null
   dayOfWeek: DayOfWeek
@@ -251,6 +373,18 @@ export const WorkoutDetails: FC<WorkoutDetailsProps> = ({
   const [isLoadingExercises, setIsLoadingExercises] = useState(false)
   const [studentName, setStudentName] = useState<string>("")
   const [pdfReady, setPdfReady] = useState(false)
+  const [showCelebration, setShowCelebration] = useState<"daily" | "weekly" | "monthly" | null>(null)
+
+  // Verificar se deve mostrar celebração
+  useEffect(() => {
+    if (monthlyCompleted) {
+      setShowCelebration("monthly")
+    } else if (weeklyCompleted) {
+      setShowCelebration("weekly")
+    } else if (dailyCompleted) {
+      setShowCelebration("daily")
+    }
+  }, [dailyCompleted, weeklyCompleted, monthlyCompleted])
 
   // Carregar exercícios do Firestore
   useEffect(() => {
@@ -316,21 +450,42 @@ export const WorkoutDetails: FC<WorkoutDetailsProps> = ({
   const exportWorkoutImage = async () => {
     try {
       setExportLoading(true)
+
+      // Criar uma tabela estilo Excel para exportação
       const element = document.getElementById("workout-export")
       if (!element) return
 
+      // Configurações melhoradas para html2canvas
       const canvas = await html2canvas(element, {
-        backgroundColor: "#1f2937", // Cor de fundo escura
+        backgroundColor: "#ffffff",
         scale: 2,
+        useCORS: true, // Importante para imagens externas
+        allowTaint: true,
+        logging: false,
+        imageTimeout: 0, // Sem timeout para imagens
+        onclone: (clonedDoc) => {
+          // Ajustar o clone para melhor renderização
+          const clonedElement = clonedDoc.getElementById("workout-export")
+          if (clonedElement) {
+            clonedElement.style.width = "800px"
+            clonedElement.style.padding = "20px"
+            clonedElement.style.backgroundColor = "#ffffff"
+            clonedElement.style.color = "#000000"
+          }
+        },
       })
 
-      const dataUrl = canvas.toDataURL("image/png")
+      // Converter para PNG com qualidade máxima
+      const dataUrl = canvas.toDataURL("image/png", 1.0)
+
+      // Criar um link para download
       const link = document.createElement("a")
       link.download = `treino-${daysOfWeekLabels[dayOfWeek]}.png`
       link.href = dataUrl
       link.click()
     } catch (error) {
       console.error("Erro ao exportar imagem:", error)
+      alert("Não foi possível exportar a imagem. Por favor, tente novamente.")
     } finally {
       setExportLoading(false)
     }
@@ -356,10 +511,13 @@ export const WorkoutDetails: FC<WorkoutDetailsProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Mensagens de conclusão */}
+      {/* Mensagens de celebração */}
+      {showCelebration && <CelebrationModal type={showCelebration} onClose={() => setShowCelebration(null)} />}
+
+      {/* Mensagens de conclusão (agora como notificações menores) */}
       {showCompletionMessages && (
         <>
-          {dailyCompleted && (
+          {dailyCompleted && !showCelebration && (
             <div className="bg-green-900 border-l-4 border-green-500 p-4 rounded-xl flex items-center">
               <Award className="h-6 w-6 text-green-400 mr-3" />
               <div>
@@ -369,7 +527,7 @@ export const WorkoutDetails: FC<WorkoutDetailsProps> = ({
             </div>
           )}
 
-          {weeklyCompleted && (
+          {weeklyCompleted && !showCelebration && (
             <div className="bg-blue-900 border-l-4 border-blue-500 p-4 rounded-xl flex items-center">
               <Calendar className="h-6 w-6 text-blue-400 mr-3" />
               <div>
@@ -379,7 +537,7 @@ export const WorkoutDetails: FC<WorkoutDetailsProps> = ({
             </div>
           )}
 
-          {monthlyCompleted && (
+          {monthlyCompleted && !showCelebration && (
             <div className="bg-purple-900 border-l-4 border-purple-500 p-4 rounded-xl flex items-center">
               <CalendarCheck className="h-6 w-6 text-purple-400 mr-3" />
               <div>
@@ -440,6 +598,16 @@ export const WorkoutDetails: FC<WorkoutDetailsProps> = ({
               </PDFDownloadLink>
             )}
 
+            {/* Botão de exportação Excel */}
+            {pdfReady && Object.keys(exercises).length > 0 && (
+              <WorkoutExcelExport
+                workout={workout}
+                studentName={studentName || "Aluno"}
+                exercises={exercises}
+                fileName={`treino-${workout.name || daysOfWeekLabels[dayOfWeek]}`}
+              />
+            )}
+
             {!workout.completed && allExercisesCompleted && onCompleteWorkout && (
               <button
                 onClick={handleCompleteWorkout}
@@ -452,7 +620,7 @@ export const WorkoutDetails: FC<WorkoutDetailsProps> = ({
           </div>
         </div>
 
-        {/* Área visível para exportação */}
+        {/* Área visível para exportação no estilo normal */}
         <div id="workout-export" className="p-6 bg-gray-800">
           <div className="mb-4 pb-4 border-b border-gray-700">
             <h2 className="text-xl font-bold text-center text-white">
@@ -485,6 +653,57 @@ export const WorkoutDetails: FC<WorkoutDetailsProps> = ({
               })}
             </div>
           )}
+        </div>
+
+        {/* Área oculta para exportação no estilo Excel */}
+        <div id="workout-excel-export" className="hidden">
+          <div style={{ padding: "20px", fontFamily: "Arial, sans-serif", backgroundColor: "white", color: "black" }}>
+            <div style={{ textAlign: "center", marginBottom: "20px" }}>
+              <h1 style={{ fontSize: "24px", fontWeight: "bold", color: "#333" }}>GymTask</h1>
+              <h2 style={{ fontSize: "18px", color: "#555" }}>
+                {workout.name || `Treino de ${daysOfWeekLabels[workout.dayOfWeek]}`}
+              </h2>
+            </div>
+
+            <div style={{ marginBottom: "20px" }}>
+              <p>
+                <strong>Aluno:</strong> {studentName || "Aluno"}
+              </p>
+              <p>
+                <strong>Dia:</strong> {daysOfWeekLabels[workout.dayOfWeek]}
+              </p>
+              <p>
+                <strong>Data:</strong> {formattedDate}
+              </p>
+            </div>
+
+            <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #ddd" }}>
+              <thead>
+                <tr style={{ backgroundColor: "#f3f3f3" }}>
+                  <th style={{ border: "1px solid #ddd", padding: "8px", textAlign: "left" }}>Exercício</th>
+                  <th style={{ border: "1px solid #ddd", padding: "8px", textAlign: "center" }}>Séries</th>
+                  <th style={{ border: "1px solid #ddd", padding: "8px", textAlign: "center" }}>Repetições</th>
+                  <th style={{ border: "1px solid #ddd", padding: "8px", textAlign: "left" }}>Observações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {workout.exercises.map((ex) => (
+                  <tr key={ex.id}>
+                    <td style={{ border: "1px solid #ddd", padding: "8px" }}>
+                      {exercises[ex.exerciseId]?.name || "Exercício não encontrado"}
+                    </td>
+                    <td style={{ border: "1px solid #ddd", padding: "8px", textAlign: "center" }}>{ex.sets}</td>
+                    <td style={{ border: "1px solid #ddd", padding: "8px", textAlign: "center" }}>{ex.reps}</td>
+                    <td style={{ border: "1px solid #ddd", padding: "8px" }}>{ex.notes || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <div style={{ marginTop: "20px", fontSize: "10px", color: "#777", textAlign: "center" }}>
+              Gerado por GymTask em {formattedDate} • www.gymtask.app • Todos os direitos reservados
+            </div>
+          </div>
         </div>
 
         {/* Progresso do treino */}

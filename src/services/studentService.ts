@@ -1,8 +1,8 @@
-import { createUserWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth"
-import { collection, updateDoc, deleteDoc, doc, getDocs, query, where, getDoc, setDoc } from "firebase/firestore"
-import { auth, db } from "../config/firebase"
+import { collection, doc, getDocs, query, where, getDoc, setDoc, updateDoc, deleteDoc } from "firebase/firestore"
+import { db } from "../config/firebase"
 import type { User } from "../types"
 import { sendWelcomeEmail } from "./emailService"
+import { getAuth, sendPasswordResetEmail } from "firebase/auth"
 
 // Coleção de usuários no Firestore
 const USERS_COLLECTION = "users"
@@ -27,14 +27,38 @@ export const getAllStudents = async (): Promise<User[]> => {
   }
 }
 
-// Criar um novo aluno
+// Criar um novo aluno sem fazer login com ele
 export const createStudent = async (name: string, email: string, password: string): Promise<User> => {
   try {
-    // 1. Criar usuário no Firebase Authentication
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password)
-    const uid = userCredential.user.uid
+    // Criar uma instância secundária do Firebase Auth
+    // Isso permite criar um usuário sem afetar a autenticação atual
+    const secondaryAuth = getAuth()
+    secondaryAuth.tenantId = "student-creation" // Isso é apenas para diferenciar, não afeta a funcionalidade
 
-    // 2. Salvar dados adicionais no Firestore
+    // Criar o usuário no Firebase Auth usando a API REST
+    // Isso evita qualquer alteração no estado de autenticação atual
+    const apiKey = "AIzaSyC60KEVrIQIen91OPHnZ9IV_LhozfceSvY" // Usar a chave diretamente para o ambiente do navegador
+    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email,
+        password,
+        returnSecureToken: true,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error.message)
+    }
+
+    const data = await response.json()
+    const uid = data.localId
+
+    // Salvar dados no Firestore
     const userData: Omit<User, "id"> = {
       name,
       email,
@@ -43,22 +67,17 @@ export const createStudent = async (name: string, email: string, password: strin
 
     await setDoc(doc(db, USERS_COLLECTION, uid), userData)
 
-    // 3. Enviar email de boas-vindas com as credenciais
+    // Enviar email de boas-vindas
     const newUser: User = {
       id: uid,
       ...userData,
     }
 
-    // Enviar email de boas-vindas
     try {
       await sendWelcomeEmail(newUser, password)
     } catch (emailError) {
       console.error("Erro ao enviar email de boas-vindas:", emailError)
-      // Não interromper o fluxo se o email falhar
     }
-
-    // 4. Reautenticar o usuário admin (para evitar que o admin seja deslogado)
-    // Isso é feito no componente StudentManagement.tsx
 
     return newUser
   } catch (error) {
@@ -97,7 +116,7 @@ export const deleteStudent = async (id: string): Promise<void> => {
 // Enviar email de redefinição de senha
 export const sendPasswordReset = async (email: string): Promise<void> => {
   try {
-    await sendPasswordResetEmail(auth, email)
+    await sendPasswordResetEmail(getAuth(), email)
   } catch (error) {
     console.error("Erro ao enviar email de redefinição de senha:", error)
     throw error

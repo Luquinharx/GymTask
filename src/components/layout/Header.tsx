@@ -6,6 +6,10 @@ import { Dumbbell, LogOut, User, Menu, X, Bell } from "lucide-react"
 import { useAuth } from "../../contexts/AuthContext"
 import { useState } from "react"
 
+// Importar a fonte Orbitron do Google Fonts
+import "@fontsource/orbitron/400.css"
+import "@fontsource/orbitron/700.css"
+
 interface HeaderProps {
   title: string
 }
@@ -26,7 +30,7 @@ const Header: React.FC<HeaderProps> = ({ title }) => {
 
   return (
     <header
-      className={`${isStudent ? "bg-gray-800 text-white" : "bg-white text-gray-900"} shadow-lg sticky top-0 z-30`}
+      className={`${isStudent || isAdmin ? "bg-gray-800 text-white" : "bg-white text-gray-900"} shadow-lg sticky top-0 z-30`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
@@ -34,7 +38,7 @@ const Header: React.FC<HeaderProps> = ({ title }) => {
             <div className="flex-shrink-0 flex items-center">
               <Link to={isAdmin ? "/admin" : "/student"} className="flex items-center">
                 <Dumbbell className={`h-8 w-8 ${isStudent ? "text-blue-400" : "text-blue-600"}`} />
-                <span className="ml-2 text-xl font-bold">GymTask</span>
+                <span className="ml-2 text-xl font-bold font-orbitron">GymTask</span>
               </Link>
               <div className="hidden md:block ml-6 border-l border-gray-300 h-6"></div>
               <h1 className="hidden md:block ml-6 text-xl font-bold">{title}</h1>
@@ -45,25 +49,25 @@ const Header: React.FC<HeaderProps> = ({ title }) => {
               <div className="hidden sm:ml-6 sm:flex sm:space-x-4">
                 <Link
                   to="/admin"
-                  className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 transition-colors flex items-center"
+                  className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700 transition-colors flex items-center"
                 >
                   Dashboard
                 </Link>
                 <Link
                   to="/admin/students"
-                  className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 transition-colors flex items-center"
+                  className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700 transition-colors flex items-center"
                 >
                   Alunos
                 </Link>
                 <Link
                   to="/admin/exercises"
-                  className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 transition-colors flex items-center"
+                  className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700 transition-colors flex items-center"
                 >
                   Exercícios
                 </Link>
                 <Link
                   to="/admin/workouts"
-                  className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 transition-colors flex items-center"
+                  className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700 transition-colors flex items-center"
                 >
                   Treinos
                 </Link>

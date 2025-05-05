@@ -1,3 +1,58 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@keyframes border-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-border-flow {
+  animation: border-flow 3s ease infinite;
+  background-size: 300% 300%;
+}
+
+.font-orbitron {
+  font-family: "Orbitron", sans-serif;
+}
+
+@keyframes celebration {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-celebration {
+  animation: celebration 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-100vh);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh);
+    opacity: 0;
+  }
+}
+
+.animate-confetti {
+  animation: confetti-fall 4s ease-in-out forwards;
+}
