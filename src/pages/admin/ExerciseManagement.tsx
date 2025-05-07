@@ -191,12 +191,12 @@ const ExerciseManagement: React.FC = () => {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-900">
       <Header title="Gerenciamento de Exercícios" />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4 sm:mb-0">Exercícios</h2>
+          <h2 className="text-2xl font-bold text-white mb-4 sm:mb-0">Exercícios</h2>
 
           <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-4">
             <div className="relative w-full sm:w-64">
@@ -206,7 +206,7 @@ const ExerciseManagement: React.FC = () => {
               <input
                 type="text"
                 placeholder="Buscar exercícios..."
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="block w-full pl-10 pr-3 py-2 border border-gray-600 bg-gray-800 text-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 value={searchTerm}
                 onChange={handleSearch}
               />
@@ -223,10 +223,10 @@ const ExerciseManagement: React.FC = () => {
         </div>
 
         {error && (
-          <div className="mb-4 bg-red-50 border-l-4 border-red-400 p-4">
+          <div className="mb-4 bg-red-900 border-l-4 border-red-500 p-4 rounded-md">
             <div className="flex">
               <div className="ml-3">
-                <p className="text-sm text-red-700">{error}</p>
+                <p className="text-sm text-red-200">{error}</p>
               </div>
             </div>
           </div>
@@ -235,22 +235,24 @@ const ExerciseManagement: React.FC = () => {
         {isLoading ? (
           <div className="flex justify-center items-center py-12">
             <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
-            <span className="ml-2 text-gray-600">Carregando exercícios...</span>
+            <span className="ml-2 text-gray-300">Carregando exercícios...</span>
           </div>
         ) : filteredExercises.length === 0 ? (
-          <div className="bg-white shadow rounded-lg p-6 text-center">
-            <p className="text-gray-500">Nenhum exercício encontrado.</p>
+          <div className="bg-gray-800 shadow rounded-lg p-6 text-center">
+            <p className="text-gray-400">Nenhum exercício encontrado.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredExercises.map((exercise) => (
-              <ExerciseCard
-                key={exercise.id}
-                exercise={exercise}
-                showDetails={true}
-                onEdit={() => openModal(exercise)}
-                onDelete={() => handleDelete(exercise.id)}
-              />
+              <div key={exercise.id} className="bg-gray-800 rounded-lg shadow-md overflow-hidden">
+                <ExerciseCard
+                  key={exercise.id}
+                  exercise={exercise}
+                  showDetails={true}
+                  onEdit={() => openModal(exercise)}
+                  onDelete={() => handleDelete(exercise.id)}
+                />
+              </div>
             ))}
           </div>
         )}
@@ -258,11 +260,13 @@ const ExerciseManagement: React.FC = () => {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center px-6 py-4 border-b">
-              <h3 className="text-lg font-semibold">{currentExercise ? "Editar Exercício" : "Novo Exercício"}</h3>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-500">
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-gray-700">
+              <h3 className="text-lg font-semibold text-white">
+                {currentExercise ? "Editar Exercício" : "Novo Exercício"}
+              </h3>
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-300">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -270,7 +274,7 @@ const ExerciseManagement: React.FC = () => {
             <form onSubmit={handleSubmit} className="px-6 py-4">
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-300">
                     Nome do Exercício
                   </label>
                   <input
@@ -280,12 +284,12 @@ const ExerciseManagement: React.FC = () => {
                     required
                     value={formData.name}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="mt-1 block w-full border border-gray-600 bg-gray-700 text-white rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="muscleGroup" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="muscleGroup" className="block text-sm font-medium text-gray-300">
                     Grupo Muscular
                   </label>
                   <select
@@ -294,7 +298,7 @@ const ExerciseManagement: React.FC = () => {
                     required
                     value={formData.muscleGroup}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="mt-1 block w-full border border-gray-600 bg-gray-700 text-white rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   >
                     <option value="" disabled>
                       Selecione um grupo muscular
@@ -308,7 +312,7 @@ const ExerciseManagement: React.FC = () => {
                 </div>
 
                 <div>
-                  <label htmlFor="instructions" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="instructions" className="block text-sm font-medium text-gray-300">
                     Instruções
                   </label>
                   <textarea
@@ -318,12 +322,12 @@ const ExerciseManagement: React.FC = () => {
                     required
                     value={formData.instructions}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="mt-1 block w-full border border-gray-600 bg-gray-700 text-white rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-300">
                     URL da Imagem (opcional)
                   </label>
                   <input
@@ -332,7 +336,7 @@ const ExerciseManagement: React.FC = () => {
                     name="imageUrl"
                     value={formData.imageUrl}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="mt-1 block w-full border border-gray-600 bg-gray-700 text-white rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="https://..."
                   />
                 </div>
@@ -342,14 +346,14 @@ const ExerciseManagement: React.FC = () => {
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  className="px-4 py-2 border border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-300 bg-gray-700 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-400 disabled:cursor-not-allowed"
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-800 disabled:opacity-70"
                 >
                   {isSaving ? (
                     <>

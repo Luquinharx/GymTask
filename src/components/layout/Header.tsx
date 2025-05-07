@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useNavigate, Link } from "react-router-dom"
-import { Dumbbell, LogOut, User, Menu, X, Bell } from "lucide-react"
+import { LogOut, User, Menu, X, Bell } from "lucide-react"
 import { useAuth } from "../../contexts/AuthContext"
 import { useState } from "react"
 
@@ -37,7 +37,7 @@ const Header: React.FC<HeaderProps> = ({ title }) => {
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
               <Link to={isAdmin ? "/admin" : "/student"} className="flex items-center">
-                <Dumbbell className={`h-8 w-8 ${isStudent ? "text-blue-400" : "text-blue-600"}`} />
+                <img src="/logo.png" alt="GymTask Logo" className="h-8 w-8" />
                 <span className="ml-2 text-xl font-bold font-orbitron">GymTask</span>
               </Link>
               <div className="hidden md:block ml-6 border-l border-gray-300 h-6"></div>

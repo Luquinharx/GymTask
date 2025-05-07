@@ -4,7 +4,6 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../contexts/AuthContext"
-import { Dumbbell } from "lucide-react"
 
 // Importar a fonte Orbitron do Google Fonts
 import "@fontsource/orbitron/400.css"
@@ -64,7 +63,7 @@ const Login = () => {
           <div className="relative bg-black/70 backdrop-blur-sm rounded-xl p-8">
             <div className="text-center">
               <div className="flex justify-center">
-                <Dumbbell className="h-16 w-16 text-blue-400" />
+                <img src="/logo.png" alt="GymTask Logo" className="h-16 w-16" />
               </div>
               <h2 className="mt-6 text-4xl font-extrabold text-white tracking-tight font-orbitron">GymTask</h2>
               <p className="mt-2 text-sm text-gray-300">Seu treino personalizado na palma da mão</p>

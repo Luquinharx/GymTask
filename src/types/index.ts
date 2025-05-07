@@ -15,6 +15,9 @@ export interface Exercise {
   instructions: string
   imageUrl?: string
   videoUrl?: string // Adicionado campo para vídeo
+  weight?: number // Peso em kg
+  repsPerSet?: number[] // Repetições por série
+  completed?: boolean
 }
 
 // Workout Types
@@ -26,6 +29,8 @@ export interface Workout {
   exercises: WorkoutExercise[]
   completed?: boolean
   completedDate?: string
+  intensity?: number // Intensidade do treino (1-5)
+  history?: WorkoutHistory[] // Histórico de treinos
 }
 
 export interface WorkoutExercise {
@@ -35,6 +40,25 @@ export interface WorkoutExercise {
   reps: number
   notes?: string
   completed?: boolean
+  weight?: number // Peso em kg
+  repsPerSet?: number[] // Repetições por série
+  history?: ExerciseHistory[] // Histórico do exercício
+}
+
+// Histórico de treinos
+export interface WorkoutHistory {
+  date: string
+  intensity: number
+  exercises: ExerciseHistory[]
+}
+
+// Histórico de exercícios
+export interface ExerciseHistory {
+  exerciseId: string
+  weight: number
+  repsPerSet: number[]
+  completed: boolean
+  date: string
 }
 
 // Novo tipo para templates de treino

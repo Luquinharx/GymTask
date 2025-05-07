@@ -12,6 +12,7 @@ import {
   updateStudent,
   deleteStudent,
   sendPasswordReset,
+  checkEmailExists,
 } from "../../services/studentService"
 import { useAuth } from "../../contexts/AuthContext"
 import { Link } from "react-router-dom"
@@ -88,6 +89,14 @@ const StudentManagement: React.FC = () => {
           prev.map((s) => (s.id === currentStudent.id ? { ...s, name: student.name, email: student.email } : s)),
         )
       } else {
+        // Verificar se o email já existe antes de criar
+        const emailExists = await checkEmailExists(student.email)
+        if (emailExists) {
+          setError("Este email já está em uso. Por favor, use outro email.")
+          setActionInProgress(false)
+          return
+        }
+
         // Criar novo aluno
         const newStudent = await createStudent(student.name, student.email, password)
 
@@ -110,7 +119,19 @@ const StudentManagement: React.FC = () => {
       closeModal()
     } catch (err: any) {
       console.error("Erro ao processar aluno:", err)
-      setError(err.message || "Ocorreu um erro ao processar sua solicitação. Por favor, tente novamente.")
+
+      // Mensagens de erro mais amigáveis
+      if (err.message.includes("EMAIL_EXISTS")) {
+        setError("Este email já está em uso. Por favor, use outro email.")
+      } else if (err.message.includes("INVALID_EMAIL")) {
+        setError("O endereço de email é inválido. Por favor, verifique e tente novamente.")
+      } else if (err.message.includes("WEAK_PASSWORD")) {
+        setError("A senha é muito fraca. Use pelo menos 6 caracteres.")
+      } else if (err.message.includes("recipient address is empty")) {
+        setError("O endereço de email está vazio ou é inválido. Por favor, verifique e tente novamente.")
+      } else {
+        setError(err.message || "Ocorreu um erro ao processar sua solicitação. Por favor, tente novamente.")
+      }
     } finally {
       setActionInProgress(false)
     }

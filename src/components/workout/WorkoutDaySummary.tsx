@@ -2,15 +2,28 @@
 
 import type { FC } from "react"
 import { useState, useEffect } from "react"
-import { type Workout, daysOfWeekLabels, type DayOfWeek } from "../../types"
-import ExerciseCard from "../exercise/ExerciseCard"
+import { type Workout, daysOfWeekLabels, type DayOfWeek, type ExerciseHistory } from "../../types"
 import { getExerciseById } from "../../data/mockData"
-import { Check, Download, Award, Calendar, CalendarCheck, Loader2, Printer, Star, Trophy, X } from "lucide-react"
+import {
+  Check,
+  Download,
+  Award,
+  Calendar,
+  CalendarCheck,
+  Loader2,
+  Printer,
+  Star,
+  Trophy,
+  X,
+  Info,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react"
 import html2canvas from "html2canvas"
 import { getAllExercises } from "../../services/exerciseService"
 import { getStudentById } from "../../services/studentService"
+import { getExerciseHistory } from "../../services/workoutService"
 import { PDFDownloadLink, Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer"
-import WorkoutExcelExport from "./WorkoutExcelExport"
 
 // Definir estilos para o PDF
 const styles = StyleSheet.create({
@@ -347,11 +360,96 @@ const CelebrationModal = ({
   )
 }
 
+// Componente para avaliação de intensidade
+const IntensityRating: FC<{ value: number; onChange: (value: number) => void }> = ({ value, onChange }) => {
+  return (
+    <div className="flex items-center space-x-1">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          onClick={() => onChange(star)}
+          className={`focus:outline-none ${star <= value ? "text-yellow-500" : "text-gray-400"}`}
+        >
+          <Star className={`h-6 w-6 ${star <= value ? "fill-current" : ""}`} />
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// Componente para mostrar o histórico de um exercício
+const ExerciseHistoryPanel: FC<{
+  history: ExerciseHistory[]
+  exerciseName: string
+}> = ({ history, exerciseName }) => {
+  const [isOpen, setIsOpen] = useState(false)
+
+  if (history.length === 0) {
+    return null
+  }
+
+  // Ordenar por data, do mais recente para o mais antigo
+  const sortedHistory = [...history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  const lastSession = sortedHistory[0]
+
+  return (
+    <div className="mt-2 bg-gray-800 rounded-lg border border-gray-700">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex justify-between items-center p-3 text-left focus:outline-none"
+      >
+        <div className="flex items-center">
+          <Info className="h-4 w-4 text-blue-400 mr-2" />
+          <span className="text-sm text-gray-300">
+            Último treino: {new Date(lastSession.date).toLocaleDateString("pt-BR")}
+          </span>
+        </div>
+        {isOpen ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
+      </button>
+
+      {isOpen && (
+        <div className="p-3 pt-0 border-t border-gray-700">
+          <h5 className="text-sm font-medium text-gray-300 mb-2">Histórico de {exerciseName}</h5>
+          <div className="space-y-2">
+            {sortedHistory.slice(0, 3).map((record, index) => (
+              <div key={index} className="bg-gray-700 p-2 rounded text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-300">{new Date(record.date).toLocaleDateString("pt-BR")}</span>
+                  <span className="text-blue-400 font-medium">{record.weight} kg</span>
+                </div>
+                <div className="mt-1">
+                  <span className="text-gray-400">Repetições: </span>
+                  <span className="text-gray-300">
+                    {record.repsPerSet.map((reps, i) => `${i + 1}ª: ${reps}`).join(", ")}
+                  </span>
+                </div>
+              </div>
+            ))}
+
+            {sortedHistory.length > 3 && (
+              <button
+                className="text-xs text-blue-400 hover:text-blue-300 mt-1"
+                onClick={() => alert("Histórico completo seria exibido aqui")}
+              >
+                Ver histórico completo
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 interface WorkoutDetailsProps {
   workout: Workout | null
   dayOfWeek: DayOfWeek
   onToggleExerciseComplete?: (workoutId: string, exerciseId: string, completed: boolean) => void
   onCompleteWorkout?: (workoutId: string) => void
+  onUpdateWorkoutIntensity?: (workoutId: string, intensity: number) => void
+  onUpdateExerciseWeight?: (workoutId: string, exerciseId: string, weight: number) => void
+  onUpdateExerciseReps?: (workoutId: string, exerciseId: string, setIndex: number, reps: number) => void
   showCompletionMessages?: boolean
   dailyCompleted?: boolean
   weeklyCompleted?: boolean
@@ -363,6 +461,9 @@ export const WorkoutDetails: FC<WorkoutDetailsProps> = ({
   dayOfWeek,
   onToggleExerciseComplete,
   onCompleteWorkout,
+  onUpdateWorkoutIntensity,
+  onUpdateExerciseWeight,
+  onUpdateExerciseReps,
   showCompletionMessages = false,
   dailyCompleted = false,
   weeklyCompleted = false,
@@ -374,6 +475,10 @@ export const WorkoutDetails: FC<WorkoutDetailsProps> = ({
   const [studentName, setStudentName] = useState<string>("")
   const [pdfReady, setPdfReady] = useState(false)
   const [showCelebration, setShowCelebration] = useState<"daily" | "weekly" | "monthly" | null>(null)
+  const [workoutIntensity, setWorkoutIntensity] = useState<number>(workout?.intensity || 0)
+  const [exerciseWeights, setExerciseWeights] = useState<Record<string, number>>({})
+  const [exerciseReps, setExerciseReps] = useState<Record<string, number[]>>({})
+  const [exerciseHistory, setExerciseHistory] = useState<Record<string, ExerciseHistory[]>>({})
 
   // Verificar se deve mostrar celebração
   useEffect(() => {
@@ -403,6 +508,33 @@ export const WorkoutDetails: FC<WorkoutDetailsProps> = ({
 
         setExercises(exercisesMap)
 
+        // Inicializar pesos e repetições
+        const weights: Record<string, number> = {}
+        const reps: Record<string, number[]> = {}
+        const history: Record<string, ExerciseHistory[]> = {}
+
+        // Para cada exercício, carregar o histórico
+        for (const ex of workout.exercises) {
+          weights[ex.id] = ex.weight || 0
+          reps[ex.id] = ex.repsPerSet || Array(ex.sets).fill(ex.reps)
+
+          // Carregar histórico do exercício
+          if (workout.studentId) {
+            try {
+              const exerciseHistoryData = await getExerciseHistory(workout.studentId, ex.exerciseId)
+              history[ex.id] = exerciseHistoryData
+            } catch (error) {
+              console.error(`Erro ao carregar histórico do exercício ${ex.exerciseId}:`, error)
+              history[ex.id] = []
+            }
+          }
+        }
+
+        setExerciseWeights(weights)
+        setExerciseReps(reps)
+        setExerciseHistory(history)
+        setWorkoutIntensity(workout.intensity || 0)
+
         // Carregar nome do aluno
         if (workout.studentId) {
           const student = await getStudentById(workout.studentId)
@@ -421,6 +553,16 @@ export const WorkoutDetails: FC<WorkoutDetailsProps> = ({
 
     loadExercises()
   }, [workout])
+
+  // Verificar se todos os exercícios foram concluídos e concluir o treino automaticamente
+  useEffect(() => {
+    if (workout && !workout.completed && onCompleteWorkout) {
+      const allExercisesCompleted = workout.exercises.every((ex) => ex.completed)
+      if (allExercisesCompleted) {
+        onCompleteWorkout(workout.id)
+      }
+    }
+  }, [workout, onCompleteWorkout])
 
   if (!workout) {
     return (
@@ -441,46 +583,211 @@ export const WorkoutDetails: FC<WorkoutDetailsProps> = ({
     }
   }
 
-  const handleCompleteWorkout = () => {
-    if (onCompleteWorkout) {
-      onCompleteWorkout(workout.id)
+  const handleIntensityChange = (intensity: number) => {
+    setWorkoutIntensity(intensity)
+    if (onUpdateWorkoutIntensity) {
+      onUpdateWorkoutIntensity(workout.id, intensity)
     }
   }
 
-  const exportWorkoutImage = async () => {
+  const handleWeightChange = (exerciseId: string, weight: number) => {
+    setExerciseWeights((prev) => ({ ...prev, [exerciseId]: weight }))
+    if (onUpdateExerciseWeight) {
+      onUpdateExerciseWeight(workout.id, exerciseId, weight)
+    }
+  }
+
+  const handleRepsChange = (exerciseId: string, setIndex: number, reps: number) => {
+    setExerciseReps((prev) => {
+      const newReps = { ...prev }
+      if (!newReps[exerciseId]) {
+        const exercise = workout.exercises.find((ex) => ex.id === exerciseId)
+        newReps[exerciseId] = Array(exercise?.sets || 0).fill(exercise?.reps || 0)
+      }
+      newReps[exerciseId][setIndex] = reps
+      return newReps
+    })
+
+    if (onUpdateExerciseReps) {
+      onUpdateExerciseReps(workout.id, exerciseId, setIndex, reps)
+    }
+  }
+
+  // Função para exportar imagem no estilo PDF
+  const exportPdfStyleImage = async () => {
     try {
       setExportLoading(true)
 
-      // Criar uma tabela estilo Excel para exportação
-      const element = document.getElementById("workout-export")
-      if (!element) return
+      // Criar um elemento temporário para estilizar como PDF
+      const tempDiv = document.createElement("div")
+      tempDiv.style.position = "absolute"
+      tempDiv.style.left = "-9999px"
+      tempDiv.style.top = "-9999px"
+      tempDiv.style.width = "800px"
+      tempDiv.style.backgroundColor = "white"
+      tempDiv.style.padding = "40px"
+      tempDiv.style.fontFamily = "Arial, sans-serif"
 
-      // Configurações melhoradas para html2canvas
-      const canvas = await html2canvas(element, {
-        backgroundColor: "#ffffff",
-        scale: 2,
-        useCORS: true, // Importante para imagens externas
-        allowTaint: true,
-        logging: false,
-        imageTimeout: 0, // Sem timeout para imagens
-        onclone: (clonedDoc) => {
-          // Ajustar o clone para melhor renderização
-          const clonedElement = clonedDoc.getElementById("workout-export")
-          if (clonedElement) {
-            clonedElement.style.width = "800px"
-            clonedElement.style.padding = "20px"
-            clonedElement.style.backgroundColor = "#ffffff"
-            clonedElement.style.color = "#000000"
-          }
-        },
+      // Adicionar cabeçalho
+      const header = document.createElement("div")
+      header.style.display = "flex"
+      header.style.justifyContent = "space-between"
+      header.style.marginBottom = "20px"
+      header.style.borderBottom = "2px solid #333"
+      header.style.paddingBottom = "10px"
+
+      const titleDiv = document.createElement("div")
+
+      const title = document.createElement("h1")
+      title.textContent = "GymTask - Ficha de Treino"
+      title.style.fontSize = "24px"
+      title.style.fontWeight = "bold"
+      title.style.color = "#333"
+      titleDiv.appendChild(title)
+
+      const logo = document.createElement("img")
+      logo.src = "/logo.png"
+      logo.style.width = "50px"
+      logo.style.height = "50px"
+      logo.style.objectFit = "contain"
+
+      header.appendChild(titleDiv)
+      header.appendChild(logo)
+
+      // Adicionar informações do aluno
+      const studentInfo = document.createElement("div")
+      studentInfo.style.marginBottom = "20px"
+
+      const studentTitle = document.createElement("h2")
+      studentTitle.textContent = "Aluno:"
+      studentTitle.style.fontSize = "16px"
+      studentTitle.style.fontWeight = "bold"
+
+      const studentNameElem = document.createElement("p")
+      studentNameElem.textContent = studentName || "Aluno"
+      studentNameElem.style.fontSize = "16px"
+
+      studentInfo.appendChild(studentTitle)
+      studentInfo.appendChild(studentNameElem)
+
+      // Adicionar informações do treino
+      const workoutInfo = document.createElement("div")
+      workoutInfo.style.marginBottom = "20px"
+
+      const workoutTitle = document.createElement("h2")
+      workoutTitle.textContent = workout.name || `Treino de ${daysOfWeekLabels[dayOfWeek]}`
+      workoutTitle.style.fontSize = "18px"
+      workoutTitle.style.fontWeight = "bold"
+      workoutTitle.style.marginBottom = "10px"
+
+      workoutInfo.appendChild(workoutTitle)
+
+      // Criar tabela de exercícios
+      const table = document.createElement("table")
+      table.style.width = "100%"
+      table.style.borderCollapse = "collapse"
+      table.style.marginBottom = "20px"
+
+      // Cabeçalho da tabela
+      const thead = document.createElement("thead")
+      const headerRow = document.createElement("tr")
+      headerRow.style.backgroundColor = "#f3f3f3"
+
+      const headers = ["Exercício", "Séries", "Repetições", "Peso (kg)", "Observações"]
+      headers.forEach((headerText) => {
+        const th = document.createElement("th")
+        th.textContent = headerText
+        th.style.padding = "8px"
+        th.style.border = "1px solid #ddd"
+        th.style.textAlign = "left"
+        headerRow.appendChild(th)
       })
 
-      // Converter para PNG com qualidade máxima
-      const dataUrl = canvas.toDataURL("image/png", 1.0)
+      thead.appendChild(headerRow)
+      table.appendChild(thead)
 
-      // Criar um link para download
+      // Corpo da tabela
+      const tbody = document.createElement("tbody")
+
+      workout.exercises.forEach((ex) => {
+        const tr = document.createElement("tr")
+
+        // Exercício
+        const tdExercise = document.createElement("td")
+        tdExercise.textContent = exercises[ex.exerciseId]?.name || "Exercício não encontrado"
+        tdExercise.style.padding = "8px"
+        tdExercise.style.border = "1px solid #ddd"
+        tr.appendChild(tdExercise)
+
+        // Séries
+        const tdSets = document.createElement("td")
+        tdSets.textContent = ex.sets.toString()
+        tdSets.style.padding = "8px"
+        tdSets.style.border = "1px solid #ddd"
+        tr.appendChild(tdSets)
+
+        // Repetições
+        const tdReps = document.createElement("td")
+        tdReps.textContent = ex.reps.toString()
+        tdReps.style.padding = "8px"
+        tdReps.style.border = "1px solid #ddd"
+        tr.appendChild(tdReps)
+
+        // Peso
+        const tdWeight = document.createElement("td")
+        tdWeight.textContent = exerciseWeights[ex.id]?.toString() || "0"
+        tdWeight.style.padding = "8px"
+        tdWeight.style.border = "1px solid #ddd"
+        tr.appendChild(tdWeight)
+
+        // Observações
+        const tdNotes = document.createElement("td")
+        tdNotes.textContent = ex.notes || "-"
+        tdNotes.style.padding = "8px"
+        tdNotes.style.border = "1px solid #ddd"
+        tr.appendChild(tdNotes)
+
+        tbody.appendChild(tr)
+      })
+
+      table.appendChild(tbody)
+
+      // Adicionar rodapé
+      const footer = document.createElement("div")
+      footer.style.borderTop = "1px solid #ddd"
+      footer.style.paddingTop = "10px"
+      footer.style.fontSize = "12px"
+      footer.style.color = "#666"
+      footer.style.textAlign = "center"
+      footer.textContent = `Gerado por GymTask em ${new Date().toLocaleDateString("pt-BR")} • www.gymtask.app • Todos os direitos reservados`
+
+      // Montar o documento
+      tempDiv.appendChild(header)
+      tempDiv.appendChild(studentInfo)
+      tempDiv.appendChild(workoutInfo)
+      tempDiv.appendChild(table)
+      tempDiv.appendChild(footer)
+
+      // Adicionar ao documento para renderização
+      document.body.appendChild(tempDiv)
+
+      // Capturar como imagem
+      const canvas = await html2canvas(tempDiv, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        imageTimeout: 0,
+      })
+
+      // Remover o elemento temporário
+      document.body.removeChild(tempDiv)
+
+      // Converter para PNG e fazer download
+      const dataUrl = canvas.toDataURL("image/png", 1.0)
       const link = document.createElement("a")
-      link.download = `treino-${daysOfWeekLabels[dayOfWeek]}.png`
+      link.download = `treino-${workout.name || daysOfWeekLabels[dayOfWeek]}.png`
       link.href = dataUrl
       link.click()
     } catch (error) {
@@ -560,10 +867,11 @@ export const WorkoutDetails: FC<WorkoutDetailsProps> = ({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            {/* Botão de exportação PDF-style renomeado para Foto */}
             <button
-              onClick={exportWorkoutImage}
+              onClick={exportPdfStyleImage}
               disabled={exportLoading}
-              className="px-3 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors flex items-center disabled:bg-blue-800 disabled:opacity-70"
+              className="px-3 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors flex items-center disabled:bg-green-800 disabled:opacity-70"
             >
               {exportLoading ? (
                 <>
@@ -573,7 +881,7 @@ export const WorkoutDetails: FC<WorkoutDetailsProps> = ({
               ) : (
                 <>
                   <Download className="h-4 w-4 mr-1" />
-                  Exportar PNG
+                  Exportar Foto
                 </>
               )}
             </button>
@@ -597,26 +905,6 @@ export const WorkoutDetails: FC<WorkoutDetailsProps> = ({
                 }
               </PDFDownloadLink>
             )}
-
-            {/* Botão de exportação Excel */}
-            {pdfReady && Object.keys(exercises).length > 0 && (
-              <WorkoutExcelExport
-                workout={workout}
-                studentName={studentName || "Aluno"}
-                exercises={exercises}
-                fileName={`treino-${workout.name || daysOfWeekLabels[dayOfWeek]}`}
-              />
-            )}
-
-            {!workout.completed && allExercisesCompleted && onCompleteWorkout && (
-              <button
-                onClick={handleCompleteWorkout}
-                className="px-3 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors flex items-center"
-              >
-                <Check className="h-4 w-4 mr-1" />
-                Concluir Treino
-              </button>
-            )}
           </div>
         </div>
 
@@ -635,73 +923,128 @@ export const WorkoutDetails: FC<WorkoutDetailsProps> = ({
               <span className="ml-2 text-gray-300">Carregando exercícios...</span>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
               {workout.exercises.map((workoutExercise) => {
                 const exercise = getExerciseInfo(workoutExercise.exerciseId)
                 if (!exercise) return null
 
                 return (
-                  <ExerciseCard
-                    key={workoutExercise.id}
-                    exercise={exercise}
-                    workoutExercise={workoutExercise}
-                    showDetails={true}
-                    onToggleComplete={(id, completed) => handleToggleExerciseComplete(id, completed)}
-                    isStudentView={true}
-                  />
+                  <div key={workoutExercise.id} className="bg-gray-700 rounded-md p-4">
+                    <div className="flex flex-col md:flex-row gap-4">
+                      {/* Foto do exercício */}
+                      {exercise.imageUrl && (
+                        <div className="w-full md:w-1/3 lg:w-1/4">
+                          <img
+                            src={exercise.imageUrl || "/placeholder.svg"}
+                            alt={exercise.name}
+                            className="w-full h-48 object-cover rounded-md"
+                            onError={(e) => {
+                              e.currentTarget.src = "/placeholder.svg?height=200&width=200"
+                              e.currentTarget.alt = "Imagem não disponível"
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <h4 className="text-lg font-medium text-white">{exercise.name}</h4>
+                            {/* Ênfase nas séries e repetições */}
+                            <div className="mt-2 bg-blue-900 rounded-md p-2 inline-block">
+                              <p className="text-blue-100 font-semibold">
+                                {workoutExercise.sets} séries x {workoutExercise.reps} repetições
+                              </p>
+                            </div>
+                            <p className="text-gray-400 text-sm mt-2">{exercise.instructions}</p>
+                          </div>
+                          <button
+                            onClick={() => handleToggleExerciseComplete(workoutExercise.id, !workoutExercise.completed)}
+                            className={`rounded-full h-8 w-8 flex items-center justify-center ${
+                              workoutExercise.completed
+                                ? "bg-green-600 hover:bg-green-700"
+                                : "bg-gray-600 hover:bg-gray-500"
+                            } transition-colors`}
+                          >
+                            {workoutExercise.completed ? (
+                              <Check className="h-5 w-5 text-white" />
+                            ) : (
+                              <div className="h-3 w-3 rounded-full bg-gray-800"></div>
+                            )}
+                          </button>
+                        </div>
+
+                        {/* Histórico do exercício */}
+                        {exerciseHistory[workoutExercise.id] && exerciseHistory[workoutExercise.id].length > 0 && (
+                          <ExerciseHistoryPanel
+                            history={exerciseHistory[workoutExercise.id]}
+                            exerciseName={exercise.name}
+                          />
+                        )}
+
+                        {/* Novos campos para peso e repetições - Redesenhados */}
+                        <div className="mt-4 border-t border-gray-600 pt-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Campo de peso */}
+                            <div className="bg-gray-800 rounded-lg p-3">
+                              <label className="block text-gray-300 text-sm font-medium mb-2">Peso (kg):</label>
+                              <div className="flex items-center">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.5"
+                                  value={exerciseWeights[workoutExercise.id] || 0}
+                                  onChange={(e) =>
+                                    handleWeightChange(workoutExercise.id, Number.parseFloat(e.target.value))
+                                  }
+                                  className="bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                                <span className="ml-2 text-gray-400">kg</span>
+                              </div>
+                            </div>
+
+                            {/* Repetições por série */}
+                            <div className="bg-gray-800 rounded-lg p-3">
+                              <label className="block text-gray-300 text-sm font-medium mb-2">
+                                Repetições por série:
+                              </label>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                {Array.from({ length: workoutExercise.sets }).map((_, index) => (
+                                  <div key={index} className="flex items-center">
+                                    <span className="text-gray-400 text-sm mr-2">Série {index + 1}:</span>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={(exerciseReps[workoutExercise.id] || [])[index] || workoutExercise.reps}
+                                      onChange={(e) =>
+                                        handleRepsChange(workoutExercise.id, index, Number.parseInt(e.target.value))
+                                      }
+                                      className="bg-gray-700 border border-gray-600 rounded-md px-2 py-1 text-white text-sm w-16 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 )
               })}
             </div>
           )}
         </div>
 
-        {/* Área oculta para exportação no estilo Excel */}
-        <div id="workout-excel-export" className="hidden">
-          <div style={{ padding: "20px", fontFamily: "Arial, sans-serif", backgroundColor: "white", color: "black" }}>
-            <div style={{ textAlign: "center", marginBottom: "20px" }}>
-              <h1 style={{ fontSize: "24px", fontWeight: "bold", color: "#333" }}>GymTask</h1>
-              <h2 style={{ fontSize: "18px", color: "#555" }}>
-                {workout.name || `Treino de ${daysOfWeekLabels[workout.dayOfWeek]}`}
-              </h2>
-            </div>
-
-            <div style={{ marginBottom: "20px" }}>
-              <p>
-                <strong>Aluno:</strong> {studentName || "Aluno"}
-              </p>
-              <p>
-                <strong>Dia:</strong> {daysOfWeekLabels[workout.dayOfWeek]}
-              </p>
-              <p>
-                <strong>Data:</strong> {formattedDate}
-              </p>
-            </div>
-
-            <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #ddd" }}>
-              <thead>
-                <tr style={{ backgroundColor: "#f3f3f3" }}>
-                  <th style={{ border: "1px solid #ddd", padding: "8px", textAlign: "left" }}>Exercício</th>
-                  <th style={{ border: "1px solid #ddd", padding: "8px", textAlign: "center" }}>Séries</th>
-                  <th style={{ border: "1px solid #ddd", padding: "8px", textAlign: "center" }}>Repetições</th>
-                  <th style={{ border: "1px solid #ddd", padding: "8px", textAlign: "left" }}>Observações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {workout.exercises.map((ex) => (
-                  <tr key={ex.id}>
-                    <td style={{ border: "1px solid #ddd", padding: "8px" }}>
-                      {exercises[ex.exerciseId]?.name || "Exercício não encontrado"}
-                    </td>
-                    <td style={{ border: "1px solid #ddd", padding: "8px", textAlign: "center" }}>{ex.sets}</td>
-                    <td style={{ border: "1px solid #ddd", padding: "8px", textAlign: "center" }}>{ex.reps}</td>
-                    <td style={{ border: "1px solid #ddd", padding: "8px" }}>{ex.notes || "-"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            <div style={{ marginTop: "20px", fontSize: "10px", color: "#777", textAlign: "center" }}>
-              Gerado por GymTask em {formattedDate} • www.gymtask.app • Todos os direitos reservados
+        {/* Intensidade do treino */}
+        <div className="p-4 bg-gray-700 border-t border-gray-600">
+          <div className="flex flex-col sm:flex-row justify-between items-center">
+            <p className="text-white font-medium mb-2 sm:mb-0">Intensidade do treino:</p>
+            <div className="flex items-center">
+              <IntensityRating value={workoutIntensity} onChange={handleIntensityChange} />
+              <span className="ml-2 text-gray-300 text-sm">
+                {workoutIntensity > 0 ? `${workoutIntensity}/5` : "Não avaliado"}
+              </span>
             </div>
           </div>
         </div>

@@ -2,7 +2,7 @@ import { collection, doc, getDocs, query, where, getDoc, setDoc, updateDoc, dele
 import { db } from "../config/firebase"
 import type { User } from "../types"
 import { sendWelcomeEmail } from "./emailService"
-import { getAuth, sendPasswordResetEmail } from "firebase/auth"
+import { getAuth, sendPasswordResetEmail, fetchSignInMethodsForEmail } from "firebase/auth"
 
 // Coleção de usuários no Firestore
 const USERS_COLLECTION = "users"
@@ -27,9 +27,27 @@ export const getAllStudents = async (): Promise<User[]> => {
   }
 }
 
+// Verificar se o email já existe
+export const checkEmailExists = async (email: string): Promise<boolean> => {
+  try {
+    const auth = getAuth()
+    const methods = await fetchSignInMethodsForEmail(auth, email)
+    return methods.length > 0
+  } catch (error) {
+    console.error("Erro ao verificar email:", error)
+    return false
+  }
+}
+
 // Criar um novo aluno sem fazer login com ele
 export const createStudent = async (name: string, email: string, password: string): Promise<User> => {
   try {
+    // Verificar se o email já existe
+    const emailExists = await checkEmailExists(email)
+    if (emailExists) {
+      throw new Error("EMAIL_EXISTS: Este email já está em uso. Por favor, use outro email.")
+    }
+
     // Criar uma instância secundária do Firebase Auth
     // Isso permite criar um usuário sem afetar a autenticação atual
     const secondaryAuth = getAuth()
@@ -52,6 +70,9 @@ export const createStudent = async (name: string, email: string, password: strin
 
     if (!response.ok) {
       const errorData = await response.json()
+      if (errorData.error.message === "EMAIL_EXISTS") {
+        throw new Error("Este email já está em uso. Por favor, use outro email.")
+      }
       throw new Error(errorData.error.message)
     }
 
@@ -77,6 +98,7 @@ export const createStudent = async (name: string, email: string, password: strin
       await sendWelcomeEmail(newUser, password)
     } catch (emailError) {
       console.error("Erro ao enviar email de boas-vindas:", emailError)
+      // Não interromper o fluxo se o email falhar, apenas logar o erro
     }
 
     return newUser

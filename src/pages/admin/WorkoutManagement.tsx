@@ -65,6 +65,9 @@ const WorkoutManagement: React.FC = () => {
     description: "",
   })
 
+  // Adicionar estado para controlar quais alunos estão expandidos
+  const [expandedStudents, setExpandedStudents] = useState<Record<string, boolean>>({})
+
   // Carregar dados do Firestore
   useEffect(() => {
     const loadData = async () => {
@@ -456,254 +459,290 @@ const WorkoutManagement: React.FC = () => {
     return exercise ? exercise.name : "Exercício Desconhecido"
   }
 
+  const toggleStudent = (studentId: string) => {
+    setExpandedStudents((prev) => ({
+      ...prev,
+      [studentId]: !prev[studentId],
+    }))
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-900">
       <Header title="Gerenciamento de Treinos" />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4 sm:mb-0">Treinos Semanais</h2>
+        <div className="bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+            <h2 className="text-2xl font-bold text-white mb-4 sm:mb-0">Treinos Semanais</h2>
 
-          <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-4">
-            <select
-              value={selectedStudent}
-              onChange={(e) => setSelectedStudent(e.target.value)}
-              className="block w-full sm:w-64 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-            >
-              <option value="">Todos os Alunos</option>
-              {students.map((student) => (
-                <option key={student.id} value={student.id}>
-                  {student.name}
-                </option>
-              ))}
-            </select>
+            <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-4">
+              <select
+                value={selectedStudent}
+                onChange={(e) => setSelectedStudent(e.target.value)}
+                className="block w-full sm:w-64 pl-3 pr-10 py-2 text-base border-gray-600 bg-gray-700 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+              >
+                <option value="">Todos os Alunos</option>
+                {students.map((student) => (
+                  <option key={student.id} value={student.id}>
+                    {student.name}
+                  </option>
+                ))}
+              </select>
 
-            <button
-              onClick={() => openModal()}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <Plus className="h-5 w-5 mr-1" />
-              Novo Treino
-            </button>
-          </div>
-        </div>
-
-        {error && (
-          <div className="mb-4 bg-red-50 border-l-4 border-red-400 p-4">
-            <div className="flex">
-              <div className="ml-3">
-                <p className="text-sm text-red-700">{error}</p>
-              </div>
+              <button
+                onClick={() => openModal()}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <Plus className="h-5 w-5 mr-1" />
+                Novo Treino
+              </button>
             </div>
           </div>
-        )}
 
-        {isLoading ? (
-          <div className="flex justify-center items-center py-12">
-            <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
-            <span className="ml-2 text-gray-600">Carregando treinos...</span>
-          </div>
-        ) : filterWorkoutsByStudent().length === 0 ? (
-          <div className="bg-white shadow rounded-lg p-6 text-center">
-            <p className="text-gray-500">
-              {selectedStudent ? "Nenhum treino encontrado para este aluno." : "Nenhum treino cadastrado."}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {selectedStudent
-              ? // Group workouts by day for selected student
-                daysOfWeek
-                  .map((day) => {
-                    const workout = filterWorkoutsByStudent().find((w) => w.dayOfWeek === day)
+          {error && (
+            <div className="mb-4 bg-red-900 border-l-4 border-red-500 p-4 rounded-md">
+              <div className="flex">
+                <div className="ml-3">
+                  <p className="text-sm text-red-200">{error}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
-                    if (!workout) return null
+          {isLoading ? (
+            <div className="flex justify-center items-center py-12">
+              <Loader2 className="h-8 w-8 text-blue-400 animate-spin" />
+              <span className="ml-2 text-gray-300">Carregando treinos...</span>
+            </div>
+          ) : filterWorkoutsByStudent().length === 0 ? (
+            <div className="bg-gray-700 shadow rounded-lg p-6 text-center">
+              <p className="text-gray-400">
+                {selectedStudent ? "Nenhum treino encontrado para este aluno." : "Nenhum treino cadastrado."}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {selectedStudent
+                ? // Group workouts by day for selected student
+                  daysOfWeek
+                    .map((day) => {
+                      const workout = filterWorkoutsByStudent().find((w) => w.dayOfWeek === day)
 
-                    return (
-                      <div key={day} className="bg-white shadow rounded-lg overflow-hidden">
-                        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                          <div>
-                            <h3 className="text-lg font-medium text-gray-900">{daysOfWeekLabels[day]}</h3>
-                            {workout.name && <p className="text-sm text-gray-500">{workout.name}</p>}
+                      if (!workout) return null
+
+                      return (
+                        <div key={day} className="bg-gray-700 shadow rounded-lg overflow-hidden">
+                          <div className="px-6 py-4 border-b border-gray-600 flex justify-between items-center">
+                            <div>
+                              <h3 className="text-lg font-medium text-white">{daysOfWeekLabels[day]}</h3>
+                              {workout.name && <p className="text-sm text-gray-300">{workout.name}</p>}
+                            </div>
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => openDuplicateModal(workout)}
+                                className="p-1 text-purple-400 hover:text-purple-300"
+                                title="Duplicar para outro aluno"
+                              >
+                                <Copy className="h-5 w-5" />
+                              </button>
+                              <button
+                                onClick={() => openModal(workout)}
+                                className="p-1 text-blue-400 hover:text-blue-300"
+                                title="Editar"
+                              >
+                                <Edit className="h-5 w-5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteWorkout(workout.id)}
+                                className="p-1 text-red-400 hover:text-red-300"
+                                title="Excluir"
+                              >
+                                <Trash2 className="h-5 w-5" />
+                              </button>
+                            </div>
                           </div>
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => openDuplicateModal(workout)}
-                              className="p-1 text-purple-600 hover:text-purple-800"
-                              title="Duplicar para outro aluno"
-                            >
-                              <Copy className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => openModal(workout)}
-                              className="p-1 text-blue-600 hover:text-blue-800"
-                              title="Editar"
-                            >
-                              <Edit className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteWorkout(workout.id)}
-                              className="p-1 text-red-600 hover:text-red-800"
-                              title="Excluir"
-                            >
-                              <Trash2 className="h-5 w-5" />
-                            </button>
-                          </div>
-                        </div>
-                        <div className="px-6 py-4">
-                          <div className="border rounded-md overflow-hidden">
-                            <table className="min-w-full divide-y divide-gray-200">
-                              <thead className="bg-gray-50">
-                                <tr>
-                                  <th
-                                    scope="col"
-                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                  >
-                                    Exercício
-                                  </th>
-                                  <th
-                                    scope="col"
-                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                  >
-                                    Séries
-                                  </th>
-                                  <th
-                                    scope="col"
-                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                  >
-                                    Repetições
-                                  </th>
-                                  <th
-                                    scope="col"
-                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                  >
-                                    Observações
-                                  </th>
-                                </tr>
-                              </thead>
-                              <tbody className="bg-white divide-y divide-gray-200">
-                                {workout.exercises.map((ex) => (
-                                  <tr key={ex.id}>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                      {getExerciseName(ex.exerciseId)}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{ex.sets}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{ex.reps}</td>
-                                    <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
-                                      {ex.notes || "-"}
-                                    </td>
+                          <div className="px-6 py-4">
+                            <div className="border border-gray-600 rounded-md overflow-hidden">
+                              <table className="min-w-full divide-y divide-gray-600">
+                                <thead className="bg-gray-800">
+                                  <tr>
+                                    <th
+                                      scope="col"
+                                      className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
+                                    >
+                                      Exercício
+                                    </th>
+                                    <th
+                                      scope="col"
+                                      className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
+                                    >
+                                      Séries
+                                    </th>
+                                    <th
+                                      scope="col"
+                                      className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
+                                    >
+                                      Repetições
+                                    </th>
+                                    <th
+                                      scope="col"
+                                      className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
+                                    >
+                                      Observações
+                                    </th>
                                   </tr>
-                                ))}
-                              </tbody>
-                            </table>
+                                </thead>
+                                <tbody className="bg-gray-700 divide-y divide-gray-600">
+                                  {workout.exercises.map((ex) => (
+                                    <tr key={ex.id}>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
+                                        {getExerciseName(ex.exerciseId)}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{ex.sets}</td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{ex.reps}</td>
+                                      <td className="px-6 py-4 text-sm text-gray-300 max-w-xs truncate">
+                                        {ex.notes || "-"}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )
-                  })
-                  .filter(Boolean)
-              : // Group workouts by student
-                students
-                  .map((student) => {
-                    const studentWorkouts = filterWorkoutsByStudent().filter((w) => w.studentId === student.id)
+                      )
+                    })
+                    .filter(Boolean)
+                : // Group workouts by student
+                  (() => {
+                    return students
+                      .map((student) => {
+                        const studentWorkouts = filterWorkoutsByStudent().filter((w) => w.studentId === student.id)
 
-                    if (studentWorkouts.length === 0) return null
+                        if (studentWorkouts.length === 0) return null
 
-                    return (
-                      <div key={student.id} className="bg-white shadow rounded-lg overflow-hidden">
-                        <div className="px-6 py-4 border-b border-gray-200">
-                          <h3 className="text-lg font-medium text-gray-900">{student.name}</h3>
-                        </div>
-                        <div className="px-6 py-4">
-                          <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                            {daysOfWeek.map((day) => {
-                              const workout = studentWorkouts.find((w) => w.dayOfWeek === day)
+                        const isExpanded = expandedStudents[student.id] || false
 
-                              return (
-                                <div key={day} className="border rounded-md p-4">
-                                  <div className="flex justify-between items-center mb-3">
-                                    <h4 className="font-medium">{daysOfWeekLabels[day]}</h4>
-                                    {workout ? (
-                                      <div className="flex space-x-1">
-                                        <button
-                                          onClick={() => openDuplicateModal(workout)}
-                                          className="p-1 text-purple-600 hover:text-purple-800"
-                                          title="Duplicar para outro aluno"
-                                        >
-                                          <Copy className="h-4 w-4" />
-                                        </button>
-                                        <button
-                                          onClick={() => openModal(workout)}
-                                          className="p-1 text-blue-600 hover:text-blue-800"
-                                          title="Editar"
-                                        >
-                                          <Edit className="h-4 w-4" />
-                                        </button>
-                                        <button
-                                          onClick={() => handleDeleteWorkout(workout.id)}
-                                          className="p-1 text-red-600 hover:text-red-800"
-                                          title="Excluir"
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </button>
-                                      </div>
-                                    ) : (
-                                      <button
-                                        onClick={() => {
-                                          setFormData({
-                                            studentId: student.id,
-                                            name: "",
-                                            dayOfWeek: day,
-                                            exercises: [],
-                                          })
-                                          openModal()
-                                        }}
-                                        className="p-1 text-blue-600 hover:text-blue-800"
-                                        title="Adicionar"
-                                      >
-                                        <Plus className="h-4 w-4" />
-                                      </button>
-                                    )}
-                                  </div>
+                        return (
+                          <div key={student.id} className="bg-gray-700 shadow rounded-lg overflow-hidden mb-4">
+                            <div
+                              className="px-6 py-4 border-b border-gray-600 flex justify-between items-center cursor-pointer hover:bg-gray-600"
+                              onClick={() => toggleStudent(student.id)}
+                            >
+                              <h3 className="text-lg font-medium text-white">{student.name}</h3>
+                              <div className="flex items-center">
+                                <span className="text-gray-300 mr-2">{studentWorkouts.length} treinos</span>
+                                <svg
+                                  className={`w-5 h-5 text-gray-300 transform transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M19 9l-7 7-7-7"
+                                  />
+                                </svg>
+                              </div>
+                            </div>
 
-                                  {workout ? (
-                                    <div className="text-sm text-gray-600">
-                                      {workout.name && <p className="font-medium">{workout.name}</p>}
-                                      <p>{workout.exercises.length} exercícios</p>
-                                      <ul className="mt-2 list-disc list-inside text-xs">
-                                        {workout.exercises.slice(0, 3).map((ex) => (
-                                          <li key={ex.id} className="truncate">
-                                            {getExerciseName(ex.exerciseId)}
-                                          </li>
-                                        ))}
-                                        {workout.exercises.length > 3 && (
-                                          <li className="text-gray-500">+ {workout.exercises.length - 3} mais</li>
+                            {isExpanded && (
+                              <div className="px-6 py-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                  {daysOfWeek.map((day) => {
+                                    const workout = studentWorkouts.find((w) => w.dayOfWeek === day)
+
+                                    return (
+                                      <div key={day} className="border border-gray-600 rounded-md p-4 bg-gray-800">
+                                        <div className="flex justify-between items-center mb-3">
+                                          <h4 className="font-medium text-white">{daysOfWeekLabels[day]}</h4>
+                                          {workout ? (
+                                            <div className="flex space-x-1">
+                                              <button
+                                                onClick={() => openDuplicateModal(workout)}
+                                                className="p-1 text-purple-400 hover:text-purple-300"
+                                                title="Duplicar para outro aluno"
+                                              >
+                                                <Copy className="h-4 w-4" />
+                                              </button>
+                                              <button
+                                                onClick={() => openModal(workout)}
+                                                className="p-1 text-blue-400 hover:text-blue-300"
+                                                title="Editar"
+                                              >
+                                                <Edit className="h-4 w-4" />
+                                              </button>
+                                              <button
+                                                onClick={() => handleDeleteWorkout(workout.id)}
+                                                className="p-1 text-red-400 hover:text-red-300"
+                                                title="Excluir"
+                                              >
+                                                <Trash2 className="h-4 w-4" />
+                                              </button>
+                                            </div>
+                                          ) : (
+                                            <button
+                                              onClick={() => {
+                                                setFormData({
+                                                  studentId: student.id,
+                                                  name: "",
+                                                  dayOfWeek: day,
+                                                  exercises: [],
+                                                })
+                                                openModal()
+                                              }}
+                                              className="p-1 text-blue-400 hover:text-blue-300"
+                                              title="Adicionar"
+                                            >
+                                              <Plus className="h-4 w-4" />
+                                            </button>
+                                          )}
+                                        </div>
+
+                                        {workout ? (
+                                          <div className="text-sm text-gray-300">
+                                            {workout.name && <p className="font-medium text-white">{workout.name}</p>}
+                                            <p>{workout.exercises.length} exercícios</p>
+                                            <ul className="mt-2 list-disc list-inside text-xs">
+                                              {workout.exercises.slice(0, 3).map((ex) => (
+                                                <li key={ex.id} className="truncate">
+                                                  {getExerciseName(ex.exerciseId)}
+                                                </li>
+                                              ))}
+                                              {workout.exercises.length > 3 && (
+                                                <li className="text-gray-400">+ {workout.exercises.length - 3} mais</li>
+                                              )}
+                                            </ul>
+                                          </div>
+                                        ) : (
+                                          <p className="text-sm text-gray-400">Sem treino</p>
                                         )}
-                                      </ul>
-                                    </div>
-                                  ) : (
-                                    <p className="text-sm text-gray-400">Sem treino</p>
-                                  )}
+                                      </div>
+                                    )
+                                  })}
                                 </div>
-                              )
-                            })}
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      </div>
-                    )
-                  })
-                  .filter(Boolean)}
-          </div>
-        )}
+                        )
+                      })
+                      .filter(Boolean)
+                  })()}
+            </div>
+          )}
+        </div>
       </main>
 
       {/* Modal de Treino */}
       {showModal && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center px-6 py-4 border-b">
-              <h3 className="text-lg font-semibold">{currentWorkout ? "Editar Treino" : "Novo Treino"}</h3>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-500">
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-gray-700">
+              <h3 className="text-lg font-semibold text-white">{currentWorkout ? "Editar Treino" : "Novo Treino"}</h3>
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-300">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -712,7 +751,7 @@ const WorkoutManagement: React.FC = () => {
               <div className="space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="studentId" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="studentId" className="block text-sm font-medium text-gray-300">
                       Aluno
                     </label>
                     <select
@@ -721,7 +760,7 @@ const WorkoutManagement: React.FC = () => {
                       required
                       value={formData.studentId}
                       onChange={handleInputChange}
-                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-600 bg-gray-700 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
                       disabled={!!currentWorkout} // Can't change student for existing workout
                     >
                       <option value="" disabled>
@@ -736,7 +775,7 @@ const WorkoutManagement: React.FC = () => {
                   </div>
 
                   <div>
-                    <label htmlFor="dayOfWeek" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="dayOfWeek" className="block text-sm font-medium text-gray-300">
                       Dia da Semana
                     </label>
                     <select
@@ -745,7 +784,7 @@ const WorkoutManagement: React.FC = () => {
                       required
                       value={formData.dayOfWeek}
                       onChange={handleInputChange}
-                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-600 bg-gray-700 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
                       disabled={!!currentWorkout} // Can't change day for existing workout
                     >
                       {daysOfWeek.map((day) => (
@@ -758,7 +797,7 @@ const WorkoutManagement: React.FC = () => {
                 </div>
 
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-300">
                     Nome do Treino
                   </label>
                   <input
@@ -769,20 +808,20 @@ const WorkoutManagement: React.FC = () => {
                     value={formData.name}
                     onChange={handleInputChange}
                     placeholder="Ex: Treino A - Peito e Tríceps"
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="mt-1 block w-full border border-gray-600 bg-gray-700 text-white rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   />
                 </div>
 
                 {templates.length > 0 && (
                   <div>
-                    <label htmlFor="template" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="template" className="block text-sm font-medium text-gray-300">
                       Usar Template (opcional)
                     </label>
                     <select
                       id="template"
                       value={selectedTemplate}
                       onChange={handleTemplateSelect}
-                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-600 bg-gray-700 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
                     >
                       <option value="">Selecione um template</option>
                       {templates.map((template) => (
@@ -796,13 +835,13 @@ const WorkoutManagement: React.FC = () => {
 
                 <div>
                   <div className="flex justify-between items-center mb-4">
-                    <h4 className="text-base font-medium text-gray-900">Exercícios</h4>
+                    <h4 className="text-base font-medium text-white">Exercícios</h4>
                     <div className="flex space-x-2">
                       <button
                         type="button"
                         onClick={openTemplateModal}
                         disabled={formData.exercises.length === 0}
-                        className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-green-200 bg-green-800 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Save className="h-4 w-4 mr-1" />
                         Salvar como Template
@@ -810,7 +849,7 @@ const WorkoutManagement: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleAddExercise}
-                        className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-blue-200 bg-blue-800 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                       >
                         <Plus className="h-4 w-4 mr-1" />
                         Adicionar Exercício
@@ -819,21 +858,21 @@ const WorkoutManagement: React.FC = () => {
                   </div>
 
                   {formData.exercises.length === 0 ? (
-                    <div className="border border-dashed border-gray-300 rounded-md p-6 text-center">
-                      <p className="text-gray-500">
+                    <div className="border border-dashed border-gray-600 rounded-md p-6 text-center">
+                      <p className="text-gray-400">
                         Nenhum exercício adicionado. Clique em "Adicionar Exercício" para começar.
                       </p>
                     </div>
                   ) : (
                     <div className="space-y-4">
                       {formData.exercises.map((exercise, index) => (
-                        <div key={exercise.id} className="border rounded-md p-4 bg-gray-50">
+                        <div key={exercise.id} className="border border-gray-600 rounded-md p-4 bg-gray-700">
                           <div className="flex justify-between items-center mb-3">
-                            <h5 className="text-sm font-medium text-gray-700">Exercício {index + 1}</h5>
+                            <h5 className="text-sm font-medium text-white">Exercício {index + 1}</h5>
                             <button
                               type="button"
                               onClick={() => handleRemoveExercise(exercise.id)}
-                              className="text-red-600 hover:text-red-800"
+                              className="text-red-400 hover:text-red-300"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -843,7 +882,7 @@ const WorkoutManagement: React.FC = () => {
                             <div className="sm:col-span-2">
                               <label
                                 htmlFor={`exercise-${exercise.id}`}
-                                className="block text-xs font-medium text-gray-700"
+                                className="block text-xs font-medium text-gray-300"
                               >
                                 Exercício
                               </label>
@@ -852,7 +891,7 @@ const WorkoutManagement: React.FC = () => {
                                 value={exercise.exerciseId}
                                 onChange={(e) => handleExerciseChange(exercise.id, "exerciseId", e.target.value)}
                                 required
-                                className="mt-1 block w-full pl-3 pr-10 py-1.5 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                                className="mt-1 block w-full pl-3 pr-10 py-1.5 text-base border-gray-600 bg-gray-800 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
                               >
                                 <option value="" disabled>
                                   Selecione um exercício
@@ -868,7 +907,7 @@ const WorkoutManagement: React.FC = () => {
                             <div>
                               <label
                                 htmlFor={`sets-${exercise.id}`}
-                                className="block text-xs font-medium text-gray-700"
+                                className="block text-xs font-medium text-gray-300"
                               >
                                 Séries
                               </label>
@@ -881,14 +920,14 @@ const WorkoutManagement: React.FC = () => {
                                 }
                                 min="1"
                                 required
-                                className="mt-1 block w-full pl-3 pr-3 py-1.5 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                                className="mt-1 block w-full pl-3 pr-3 py-1.5 text-base border-gray-600 bg-gray-800 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
                               />
                             </div>
 
                             <div>
                               <label
                                 htmlFor={`reps-${exercise.id}`}
-                                className="block text-xs font-medium text-gray-700"
+                                className="block text-xs font-medium text-gray-300"
                               >
                                 Repetições
                               </label>
@@ -901,14 +940,14 @@ const WorkoutManagement: React.FC = () => {
                                 }
                                 min="1"
                                 required
-                                className="mt-1 block w-full pl-3 pr-3 py-1.5 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                                className="mt-1 block w-full pl-3 pr-3 py-1.5 text-base border-gray-600 bg-gray-800 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
                               />
                             </div>
 
                             <div className="sm:col-span-4">
                               <label
                                 htmlFor={`notes-${exercise.id}`}
-                                className="block text-xs font-medium text-gray-700"
+                                className="block text-xs font-medium text-gray-300"
                               >
                                 Observações
                               </label>
@@ -917,7 +956,7 @@ const WorkoutManagement: React.FC = () => {
                                 id={`notes-${exercise.id}`}
                                 value={exercise.notes || ""}
                                 onChange={(e) => handleExerciseChange(exercise.id, "notes", e.target.value)}
-                                className="mt-1 block w-full pl-3 pr-3 py-1.5 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                                className="mt-1 block w-full pl-3 pr-3 py-1.5 text-base border-gray-600 bg-gray-800 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
                               />
                             </div>
                           </div>
@@ -932,14 +971,14 @@ const WorkoutManagement: React.FC = () => {
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  className="px-4 py-2 border border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-300 bg-gray-700 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-400 disabled:cursor-not-allowed"
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-800 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                   {isSaving ? (
                     <>
@@ -960,11 +999,11 @@ const WorkoutManagement: React.FC = () => {
 
       {/* Modal de Template */}
       {showTemplateModal && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="flex justify-between items-center px-6 py-4 border-b">
-              <h3 className="text-lg font-semibold">Salvar como Template</h3>
-              <button onClick={closeTemplateModal} className="text-gray-400 hover:text-gray-500">
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-gray-700">
+              <h3 className="text-lg font-semibold text-white">Salvar como Template</h3>
+              <button onClick={closeTemplateModal} className="text-gray-400 hover:text-gray-300">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -972,7 +1011,7 @@ const WorkoutManagement: React.FC = () => {
             <form onSubmit={handleSaveTemplate} className="px-6 py-4">
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="templateName" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="templateName" className="block text-sm font-medium text-gray-300">
                     Nome do Template
                   </label>
                   <input
@@ -983,12 +1022,12 @@ const WorkoutManagement: React.FC = () => {
                     value={templateFormData.name}
                     onChange={handleTemplateInputChange}
                     placeholder="Ex: Treino A - Peito e Tríceps"
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="mt-1 block w-full border border-gray-600 bg-gray-700 text-white rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="templateDescription" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="templateDescription" className="block text-sm font-medium text-gray-300">
                     Descrição (opcional)
                   </label>
                   <textarea
@@ -998,17 +1037,17 @@ const WorkoutManagement: React.FC = () => {
                     value={templateFormData.description}
                     onChange={handleTemplateInputChange}
                     placeholder="Descreva o objetivo deste treino"
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="mt-1 block w-full border border-gray-600 bg-gray-700 text-white rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   />
                 </div>
 
-                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md">
+                <div className="bg-gray-900 border-l-4 border-yellow-500 p-4 rounded-md">
                   <div className="flex">
                     <div className="flex-shrink-0">
-                      <AlertCircle className="h-5 w-5 text-yellow-400" />
+                      <AlertCircle className="h-5 w-5 text-yellow-500" />
                     </div>
                     <div className="ml-3">
-                      <p className="text-sm text-yellow-700">
+                      <p className="text-sm text-gray-300">
                         Este template poderá ser reutilizado para criar novos treinos rapidamente.
                       </p>
                     </div>
@@ -1020,14 +1059,14 @@ const WorkoutManagement: React.FC = () => {
                 <button
                   type="button"
                   onClick={closeTemplateModal}
-                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  className="px-4 py-2 border border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-300 bg-gray-700 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-green-400 disabled:cursor-not-allowed"
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-green-800 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                   {isSaving ? (
                     <>
@@ -1046,11 +1085,11 @@ const WorkoutManagement: React.FC = () => {
 
       {/* Modal de Duplicação de Treino */}
       {showDuplicateModal && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="flex justify-between items-center px-6 py-4 border-b">
-              <h3 className="text-lg font-semibold">Duplicar Treino para Outro Aluno</h3>
-              <button onClick={closeDuplicateModal} className="text-gray-400 hover:text-gray-500">
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-gray-700">
+              <h3 className="text-lg font-semibold text-white">Duplicar Treino para Outro Aluno</h3>
+              <button onClick={closeDuplicateModal} className="text-gray-400 hover:text-gray-300">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -1058,7 +1097,7 @@ const WorkoutManagement: React.FC = () => {
             <form onSubmit={handleDuplicateWorkout} className="px-6 py-4">
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="studentId" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="studentId" className="block text-sm font-medium text-gray-300">
                     Aluno Destino
                   </label>
                   <div className="mt-1 flex items-center">
@@ -1069,7 +1108,7 @@ const WorkoutManagement: React.FC = () => {
                       required
                       value={duplicateData.studentId}
                       onChange={handleDuplicateInputChange}
-                      className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                      className="block w-full pl-3 pr-10 py-2 text-base border-gray-600 bg-gray-700 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
                     >
                       <option value="" disabled>
                         Selecione um aluno
@@ -1089,7 +1128,7 @@ const WorkoutManagement: React.FC = () => {
                 </div>
 
                 <div>
-                  <label htmlFor="dayOfWeek" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="dayOfWeek" className="block text-sm font-medium text-gray-300">
                     Dia da Semana
                   </label>
                   <select
@@ -1098,7 +1137,7 @@ const WorkoutManagement: React.FC = () => {
                     required
                     value={duplicateData.dayOfWeek}
                     onChange={handleDuplicateInputChange}
-                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-600 bg-gray-700 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
                   >
                     {daysOfWeek.map((day) => (
                       <option key={day} value={day}>
@@ -1108,13 +1147,13 @@ const WorkoutManagement: React.FC = () => {
                   </select>
                 </div>
 
-                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-md">
+                <div className="bg-gray-900 border-l-4 border-blue-500 p-4 rounded-md">
                   <div className="flex">
                     <div className="flex-shrink-0">
-                      <AlertCircle className="h-5 w-5 text-blue-400" />
+                      <AlertCircle className="h-5 w-5 text-blue-500" />
                     </div>
                     <div className="ml-3">
-                      <p className="text-sm text-blue-700">
+                      <p className="text-sm text-gray-300">
                         O treino será duplicado exatamente como está, incluindo todos os exercícios, séries e
                         repetições.
                       </p>
@@ -1127,14 +1166,14 @@ const WorkoutManagement: React.FC = () => {
                 <button
                   type="button"
                   onClick={closeDuplicateModal}
-                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  className="px-4 py-2 border border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-300 bg-gray-700 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:bg-purple-400 disabled:cursor-not-allowed"
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:bg-purple-800 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                   {isSaving ? (
                     <>

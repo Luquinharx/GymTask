@@ -124,8 +124,8 @@ const WorkoutPDF = ({
             <Text style={styles.title}>GymTask</Text>
             <Text style={styles.subtitle}>{workout.name || `Treino de ${daysOfWeekLabels[workout.dayOfWeek]}`}</Text>
           </View>
-          {/* Logo placeholder */}
-          <Image style={styles.logo} src="/logo-placeholder.png" />
+          {/* Logo */}
+          <Image style={styles.logo} src="/logo.png" />
         </View>
 
         <View style={styles.infoContainer}>

@@ -92,10 +92,20 @@ const StudentDashboard: React.FC = () => {
 
       setWorkouts(workouts.map((w) => (w.id === workoutId ? updatedWorkout : w)))
 
+      // Verificar se todos os exercícios foram concluídos
+      const allCompleted = updatedWorkout.exercises.every((ex) => ex.completed)
+
       // Atualizar no Firestore
       await updateWorkout(workoutId, {
         exercises: updatedWorkout.exercises,
+        // Se todos os exercícios foram concluídos, marcar o treino como concluído automaticamente
+        ...(allCompleted && !workout.completed ? { completed: true, completedDate: new Date().toISOString() } : {}),
       })
+
+      // Se todos os exercícios foram concluídos, atualizar o estado local
+      if (allCompleted && !workout.completed) {
+        handleCompleteWorkout(workoutId)
+      }
     } catch (err) {
       console.error("Erro ao atualizar exercício:", err)
       // Recarregar treinos em caso de erro
@@ -155,6 +165,84 @@ const StudentDashboard: React.FC = () => {
     } catch (err) {
       console.error("Erro ao concluir treino:", err)
       // Recarregar treinos em caso de erro
+      loadWorkouts()
+    }
+  }
+
+  const handleUpdateWorkoutIntensity = async (workoutId: string, intensity: number) => {
+    try {
+      // Atualizar localmente primeiro
+      setWorkouts((prevWorkouts) =>
+        prevWorkouts.map((workout) => {
+          if (workout.id === workoutId) {
+            return {
+              ...workout,
+              intensity,
+            }
+          }
+          return workout
+        }),
+      )
+
+      // Atualizar no Firestore
+      await updateWorkout(workoutId, {
+        intensity,
+      })
+    } catch (err) {
+      console.error("Erro ao atualizar intensidade:", err)
+      loadWorkouts()
+    }
+  }
+
+  const handleUpdateExerciseWeight = async (workoutId: string, exerciseId: string, weight: number) => {
+    try {
+      const workout = workouts.find((w) => w.id === workoutId)
+      if (!workout) return
+
+      // Atualizar localmente primeiro
+      const updatedWorkout = {
+        ...workout,
+        exercises: workout.exercises.map((ex) => (ex.id === exerciseId ? { ...ex, weight } : ex)),
+      }
+
+      setWorkouts(workouts.map((w) => (w.id === workoutId ? updatedWorkout : w)))
+
+      // Atualizar no Firestore
+      await updateWorkout(workoutId, {
+        exercises: updatedWorkout.exercises,
+      })
+    } catch (err) {
+      console.error("Erro ao atualizar peso:", err)
+      loadWorkouts()
+    }
+  }
+
+  const handleUpdateExerciseReps = async (workoutId: string, exerciseId: string, setIndex: number, reps: number) => {
+    try {
+      const workout = workouts.find((w) => w.id === workoutId)
+      if (!workout) return
+
+      const exercise = workout.exercises.find((ex) => ex.id === exerciseId)
+      if (!exercise) return
+
+      // Inicializar repsPerSet se não existir
+      const repsPerSet = [...(exercise.repsPerSet || Array(exercise.sets).fill(exercise.reps))]
+      repsPerSet[setIndex] = reps
+
+      // Atualizar localmente primeiro
+      const updatedWorkout = {
+        ...workout,
+        exercises: workout.exercises.map((ex) => (ex.id === exerciseId ? { ...ex, repsPerSet } : ex)),
+      }
+
+      setWorkouts(workouts.map((w) => (w.id === workoutId ? updatedWorkout : w)))
+
+      // Atualizar no Firestore
+      await updateWorkout(workoutId, {
+        exercises: updatedWorkout.exercises,
+      })
+    } catch (err) {
+      console.error("Erro ao atualizar repetições:", err)
       loadWorkouts()
     }
   }
@@ -292,6 +380,9 @@ const StudentDashboard: React.FC = () => {
             dayOfWeek={selectedDay}
             onToggleExerciseComplete={handleToggleExerciseComplete}
             onCompleteWorkout={handleCompleteWorkout}
+            onUpdateWorkoutIntensity={handleUpdateWorkoutIntensity}
+            onUpdateExerciseWeight={handleUpdateExerciseWeight}
+            onUpdateExerciseReps={handleUpdateExerciseReps}
             showCompletionMessages={true}
             dailyCompleted={progress.dailyCompleted}
             weeklyCompleted={progress.weeklyCompleted}

@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState } from "react"
 import type { Exercise, WorkoutExercise } from "../../types"
-import { Check, X, Video, Info } from "lucide-react"
+import { Check, Video } from "lucide-react"
 
 interface ExerciseCardProps {
   exercise: Exercise
@@ -27,135 +27,81 @@ const ExerciseCard: React.FC<ExerciseCardProps> = ({
   const [showVideo, setShowVideo] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
 
+  // Substituir a parte de renderização do card para incluir a imagem e destacar séries/repetições
   return (
-    <div
-      className={`rounded-xl overflow-hidden hover:shadow-lg transition-shadow duration-300 ${isStudentView ? "bg-gray-700 shadow-lg" : "bg-white shadow-md"}`}
-    >
+    <div className={`rounded-lg overflow-hidden shadow-md ${isStudentView ? "bg-gray-700" : "bg-gray-800"}`}>
       {exercise.imageUrl && (
-        <div className="h-40 overflow-hidden relative">
+        <div className="w-full h-48 overflow-hidden">
           <img
             src={exercise.imageUrl || "/placeholder.svg"}
             alt={exercise.name}
-            className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              e.currentTarget.src = "/placeholder.svg?height=200&width=200"
+              e.currentTarget.alt = "Imagem não disponível"
+            }}
           />
-          <div className="absolute bottom-2 right-2 flex space-x-2">
-            {exercise.videoUrl && (
-              <button
-                onClick={() => setShowVideo(true)}
-                className="bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition-colors"
-                title="Ver vídeo"
-              >
-                <Video className="h-5 w-5" />
-              </button>
-            )}
-            <button
-              onClick={() => setShowInfo(!showInfo)}
-              className="bg-gray-700 text-white p-2 rounded-full hover:bg-gray-800 transition-colors"
-              title="Ver instruções"
-            >
-              <Info className="h-5 w-5" />
-            </button>
-          </div>
         </div>
       )}
-      <div className={`p-4 ${isStudentView ? "text-white" : "text-gray-900"}`}>
+
+      <div className="p-4">
         <div className="flex justify-between items-start">
           <div>
-            <h3 className={`text-lg font-semibold ${isStudentView ? "text-white" : "text-gray-900"}`}>
-              {exercise.name}
-            </h3>
-            <span
-              className={`inline-block px-2 py-1 text-xs font-medium rounded-full mt-1 ${isStudentView ? "bg-blue-900 text-blue-200" : "bg-blue-100 text-blue-800"}`}
-            >
-              {exercise.muscleGroup}
-            </span>
+            <h3 className="text-lg font-semibold text-white">{exercise.name}</h3>
+            <p className="text-sm text-gray-400">{exercise.muscleGroup}</p>
+
+            {workoutExercise && (
+              <div className="mt-2 bg-blue-900 rounded-md p-2 inline-block">
+                <p className="text-blue-100 font-semibold">
+                  {workoutExercise.sets} séries x {workoutExercise.reps} repetições
+                </p>
+              </div>
+            )}
           </div>
 
-          {isStudentView && workoutExercise && onToggleComplete ? (
+          {workoutExercise && onToggleComplete && (
             <button
               onClick={() => onToggleComplete(workoutExercise.id, !workoutExercise.completed)}
-              className={`p-2 rounded-full ${
-                workoutExercise.completed
-                  ? "bg-green-600 text-white hover:bg-green-700"
-                  : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-              }`}
-              title={workoutExercise.completed ? "Marcar como não concluído" : "Marcar como concluído"}
+              className={`rounded-full h-8 w-8 flex items-center justify-center ${
+                workoutExercise.completed ? "bg-green-600 hover:bg-green-700" : "bg-gray-600 hover:bg-gray-500"
+              } transition-colors`}
             >
-              {workoutExercise.completed ? <Check className="h-5 w-5" /> : <X className="h-5 w-5" />}
+              {workoutExercise.completed ? (
+                <Check className="h-5 w-5 text-white" />
+              ) : (
+                <div className="h-3 w-3 rounded-full bg-gray-800"></div>
+              )}
             </button>
-          ) : (
-            (onEdit || onDelete) && (
-              <div className="flex space-x-2">
-                {onEdit && (
-                  <button onClick={onEdit} className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                    Editar
-                  </button>
-                )}
-                {onDelete && (
-                  <button onClick={onDelete} className="text-red-600 hover:text-red-800 text-sm font-medium">
-                    Excluir
-                  </button>
-                )}
-              </div>
-            )
           )}
         </div>
 
-        {workoutExercise && (
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <div className={`p-2 rounded ${isStudentView ? "bg-gray-800" : "bg-gray-50"}`}>
-              <span className={`text-xs ${isStudentView ? "text-gray-400" : "text-gray-500"}`}>Séries</span>
-              <p className="font-semibold">{workoutExercise.sets}</p>
-            </div>
-            <div className={`p-2 rounded ${isStudentView ? "bg-gray-800" : "bg-gray-50"}`}>
-              <span className={`text-xs ${isStudentView ? "text-gray-400" : "text-gray-500"}`}>Repetições</span>
-              <p className="font-semibold">{workoutExercise.reps}</p>
-            </div>
-          </div>
-        )}
+        {showDetails && (
+          <div className="mt-3">
+            {exercise.instructions && <p className="text-sm text-gray-300 mt-2">{exercise.instructions}</p>}
 
-        {workoutExercise?.notes && (
-          <div className="mt-2">
-            <p className={`text-sm italic ${isStudentView ? "text-gray-300" : "text-gray-600"}`}>
-              <span className="font-medium">Observações:</span> {workoutExercise.notes}
-            </p>
-          </div>
-        )}
+            {workoutExercise && workoutExercise.notes && (
+              <div className="mt-2 p-2 bg-gray-800 rounded">
+                <p className="text-xs text-gray-400">Observações:</p>
+                <p className="text-sm text-gray-300">{workoutExercise.notes}</p>
+              </div>
+            )}
 
-        {(showDetails || showInfo) && (
-          <div className={`mt-3 p-3 rounded-lg ${isStudentView ? "bg-gray-800" : "bg-gray-50"}`}>
-            <h4 className={`text-sm font-medium ${isStudentView ? "text-gray-300" : "text-gray-700"}`}>Instruções:</h4>
-            <p className={`text-sm mt-1 ${isStudentView ? "text-gray-400" : "text-gray-600"}`}>
-              {exercise.instructions}
-            </p>
+            {exercise.videoUrl && (
+              <div className="mt-3">
+                <a
+                  href={exercise.videoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-400 text-sm flex items-center hover:text-blue-300"
+                >
+                  <Video className="h-4 w-4 mr-1" />
+                  Ver vídeo demonstrativo
+                </a>
+              </div>
+            )}
           </div>
         )}
       </div>
-
-      {/* Modal de vídeo */}
-      {showVideo && exercise.videoUrl && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-lg shadow-xl max-w-3xl w-full">
-            <div className="p-4 border-b border-gray-700 flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-white">{exercise.name} - Vídeo Demonstrativo</h3>
-              <button onClick={() => setShowVideo(false)} className="text-gray-400 hover:text-gray-200">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="p-4">
-              <div className="aspect-video">
-                <iframe
-                  src={exercise.videoUrl}
-                  title={`Vídeo de ${exercise.name}`}
-                  className="w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                ></iframe>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
